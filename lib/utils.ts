@@ -19,11 +19,12 @@ export function formatDate(dateString: string): string {
 
 export function getDocTypeLabel(type: DocumentType): string {
   const labels: Record<DocumentType, string> = {
-    email: '営業メール',
+    email: 'メール',
     minutes: '議事録',
     proposal: '提案文',
     estimate: '見積',
     reservation: '予約対応',
+    instagram: 'Instagram',
   }
   return labels[type]
 }
@@ -53,6 +54,7 @@ export function getDocTypeColor(type: DocumentType): string {
     proposal: 'bg-purple-100 text-purple-700',
     estimate: 'bg-orange-100 text-orange-700',
     reservation: 'bg-pink-100 text-pink-700',
+    instagram: 'bg-rose-100 text-rose-700',
   }
   return colors[type]
 }

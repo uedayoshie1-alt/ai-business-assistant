@@ -1,4 +1,4 @@
-import { Mail, FileText, Lightbulb, Zap } from 'lucide-react'
+import { Mail, FileText, Lightbulb, Zap, Camera } from 'lucide-react'
 import { templateItems } from '@/lib/sample-data'
 import type { DocumentType } from '@/lib/types'
 
@@ -8,6 +8,7 @@ const typeIcons: Record<DocumentType, React.ElementType> = {
   proposal: Lightbulb,
   estimate: Zap,
   reservation: Zap,
+  instagram: Camera,
 }
 
 const typeColors: Record<DocumentType, string> = {
@@ -16,6 +17,7 @@ const typeColors: Record<DocumentType, string> = {
   proposal: 'text-purple-600 bg-purple-50',
   estimate: 'text-orange-600 bg-orange-50',
   reservation: 'text-pink-600 bg-pink-50',
+  instagram: 'text-rose-600 bg-rose-50',
 }
 
 export function TemplateList() {
