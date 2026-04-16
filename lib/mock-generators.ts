@@ -121,9 +121,60 @@ export async function generateInstagram(data: InstagramFormData): Promise<Instag
   const intro = purposeIntro[data.purpose] || purposeIntro.awareness
   const closing = toneStyle[data.tone]?.closing || toneStyle.friendly.closing
 
-  const mainBody = data.notes
-    ? `${data.theme}について、${data.notes}`
-    : `${data.theme}についてご紹介します。\n\n日常の中に取り入れることで、生活がより豊かになります。\n小さな変化が、大きな違いを生むこともあります。`
+  const purposeBody: Record<string, string> = {
+    awareness: [
+      `${data.theme}って、実はとても奥が深いんです。`,
+      ``,
+      `「難しそう」「自分には関係ない」と思っていた方も、`,
+      `一度触れてみると「こんなに使えるの！？」と驚く方がとても多いです。`,
+      ``,
+      `${data.notes ? data.notes + '\n\n' : ''}私自身も最初は手探りでしたが、`,
+      `少しずつ学んでいくうちに、日々の仕事や生活が本当に変わりました。`,
+      ``,
+      `知っているだけで、選択肢がぐっと広がります${e ? '✨' : '。'}`,
+      `まずは「知ること」から始めてみませんか？`,
+    ].join('\n'),
+
+    engagement: [
+      `${data.theme}について、みなさんはどう感じていますか？${e ? '🤔' : ''}`,
+      ``,
+      `${data.notes ? data.notes + '\n\n' : ''}「やってみたいけど、何から始めればいいかわからない」`,
+      `「使ってみたら思ったより簡単だった！」`,
+      `「もっと早く知りたかった…」`,
+      ``,
+      `いろんな声を聞くたびに、情報を届ける大切さを感じています${e ? '💡' : '。'}`,
+      ``,
+      `あなたはどんな経験がありましたか？`,
+      `コメントで教えてもらえると嬉しいです${e ? '😊' : '！'}`,
+    ].join('\n'),
+
+    announcement: [
+      `${e ? '🎉 ' : ''}${data.theme}のお知らせです！`,
+      ``,
+      `${data.notes ? data.notes + '\n\n' : ''}今回ご用意したのは、「もっと気軽に学べる場所を作りたい」という思いから生まれた企画です。`,
+      ``,
+      `難しい専門用語は使いません。`,
+      `実際にやってみながら、楽しく学べる内容になっています${e ? '🙌' : '。'}`,
+      ``,
+      `詳細はプロフィールのリンクからチェックしてみてください${e ? '👇' : '。'}`,
+      `ご参加お待ちしています！`,
+    ].join('\n'),
+
+    story: [
+      `今日は${data.theme}についての話を少しだけ${e ? '🌿' : '。'}`,
+      ``,
+      `${data.notes ? data.notes + '\n\n' : ''}ふとした瞬間に「あ、これが大事だったんだ」と気づくことってありませんか？`,
+      ``,
+      `毎日慌ただしく過ごしていると、大切なことを見落としてしまうことがあります。`,
+      `でも立ち止まって、ちゃんと向き合ってみると`,
+      `新しい発見や、自分の中の変化に気づけることがあります${e ? '✨' : '。'}`,
+      ``,
+      `今日もここまで読んでくれてありがとうございます${e ? '🤍' : '。'}`,
+      `あなたの毎日が、少しでも豊かになりますように。`,
+    ].join('\n'),
+  }
+
+  const mainBody = purposeBody[data.purpose] || purposeBody.awareness
 
   const caption = `${intro}\n\n${mainBody}\n\n${closing}`
 
