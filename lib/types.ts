@@ -86,6 +86,7 @@ export interface ReservationFormData {
 // ===== 設定 =====
 export interface CompanySettings {
   companyName: string
+  userName: string
   description: string
   preferredStyle: StyleType
   products: string

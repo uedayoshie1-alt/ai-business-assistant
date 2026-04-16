@@ -63,9 +63,14 @@ export function SettingsForm() {
         title="会社情報"
         description="AI生成に使われる基本情報です。正確に入力することで品質が向上します"
       >
-        <FormField label="会社名" required>
-          <Input value={settings.companyName} onChange={update('companyName')} />
-        </FormField>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="会社名" required>
+            <Input value={settings.companyName} onChange={update('companyName')} />
+          </FormField>
+          <FormField label="担当者名" required>
+            <Input value={settings.userName} onChange={update('userName')} placeholder="例：山田 太郎" />
+          </FormField>
+        </div>
         <FormField label="会社・サービスの説明">
           <Textarea
             value={settings.description}

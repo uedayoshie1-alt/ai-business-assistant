@@ -4,6 +4,7 @@ export const SETTINGS_KEY = 'company_settings'
 
 export const defaultSettings: CompanySettings = {
   companyName: 'サンプル株式会社',
+  userName: '山田 太郎',
   description: '中小企業向けのシステム開発・ITコンサルティング会社です。',
   preferredStyle: 'standard',
   products: 'クラウド型業務管理システム「BizFlow」\n在庫管理ツール「StockMate」\nITコンサルティングサービス',
