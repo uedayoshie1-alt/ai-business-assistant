@@ -1,19 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FormField, Input, Textarea, Select, RadioGroup } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
 import { Building2, FileText, AlertTriangle, PenLine, BookTemplate, Check } from 'lucide-react'
 import type { CompanySettings, StyleType } from '@/lib/types'
-
-const defaultSettings: CompanySettings = {
-  companyName: 'サンプル株式会社',
-  description: '中小企業向けのシステム開発・ITコンサルティング会社です。',
-  preferredStyle: 'standard',
-  products: 'クラウド型業務管理システム「BizFlow」\n在庫管理ツール「StockMate」\nITコンサルティングサービス',
-  prohibitedWords: '絶対、必ず、保証、最高、日本一',
-  signature: '─────────────\n株式会社サンプル\n営業部 山田太郎\nTEL: 03-xxxx-xxxx\nMail: yamada@sample.co.jp\n─────────────',
-}
+import { SETTINGS_KEY, defaultSettings, loadSettings } from '@/lib/settings'
 
 const styleOptions = [
   { value: 'concise', label: '簡潔・シンプル' },
@@ -49,11 +41,16 @@ export function SettingsForm() {
   const [settings, setSettings] = useState<CompanySettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
 
+  useEffect(() => {
+    setSettings(loadSettings())
+  }, [])
+
   const update = (key: keyof CompanySettings) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => setSettings({ ...settings, [key]: e.target.value })
 
   const handleSave = () => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }

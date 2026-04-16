@@ -9,12 +9,14 @@ import type {
   MinutesFormData, MinutesOutput,
   ProposalFormData, ProposalOutput,
 } from './types'
+import { loadSettings } from './settings'
 
 // 処理時間をシミュレートするユーティリティ
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // ===== 営業メール生成 =====
 export async function generateEmail(data: EmailFormData): Promise<EmailOutput> {
+  const settings = loadSettings()
   await delay(1200)
 
   const purposeMap: Record<string, string> = {
@@ -51,9 +53,7 @@ ${data.notes
 
 ${closing}
 
-───────────────────────
-（署名ブロック）
-───────────────────────`
+${settings.signature}`
 
   return {
     subjectLine,
