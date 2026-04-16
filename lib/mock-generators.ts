@@ -8,6 +8,7 @@ import type {
   EmailFormData, EmailOutput,
   MinutesFormData, MinutesOutput,
   ProposalFormData, ProposalOutput,
+  InstagramFormData, InstagramOutput,
 } from './types'
 import { loadSettings } from './settings'
 
@@ -93,6 +94,66 @@ export async function generateMinutes(data: MinutesFormData): Promise<MinutesOut
       '各担当者の進捗状況の確認',
       '予算執行状況の報告',
       'パートナーからの返答内容の共有',
+    ],
+  }
+}
+
+// ===== Instagram投稿生成 =====
+export async function generateInstagram(data: InstagramFormData): Promise<InstagramOutput> {
+  await delay(1400)
+
+  const e = data.useEmoji
+
+  const purposeIntro: Record<string, string> = {
+    awareness:    e ? '✨ 知っていましたか？' : '知っていましたか？',
+    engagement:   e ? '💬 あなたはどう思いますか？' : 'あなたはどう思いますか？',
+    announcement: e ? '📣 お知らせがあります！' : 'お知らせがあります。',
+    story:        e ? '🌿 今日のストーリーをシェアします。' : '今日のストーリーをシェアします。',
+  }
+
+  const toneStyle: Record<string, { closing: string }> = {
+    friendly:     { closing: e ? 'いつも応援ありがとうございます😊\nぜひコメントで教えてください！' : 'いつも応援ありがとうございます。ぜひコメントで教えてください！' },
+    professional: { closing: e ? '詳細はプロフィールのリンクからご確認ください📎' : '詳細はプロフィールのリンクからご確認ください。' },
+    casual:       { closing: e ? 'またシェアするね🙌 フォローもよろしく！' : 'またシェアするね！フォローもよろしく。' },
+    inspiring:    { closing: e ? '一歩踏み出す勇気を、あなたに🌟' : '一歩踏み出す勇気を、あなたに。' },
+  }
+
+  const intro = purposeIntro[data.purpose] || purposeIntro.awareness
+  const closing = toneStyle[data.tone]?.closing || toneStyle.friendly.closing
+
+  const mainBody = data.notes
+    ? `${data.theme}について、${data.notes}`
+    : `${data.theme}についてご紹介します。\n\n日常の中に取り入れることで、生活がより豊かになります。\n小さな変化が、大きな違いを生むこともあります。`
+
+  const caption = `${intro}\n\n${mainBody}\n\n${closing}`
+
+  const baseHashtags = [
+    data.theme.replace(/\s/g, ''),
+    'ハッピーステート',
+    '上田良江',
+    'AI活用',
+    '生成AI',
+    'ChatGPT',
+    'DX推進',
+    'AI講座',
+    'スキルアップ',
+    '北海道',
+    'ビジネス',
+    'Instagram',
+    '日常',
+    'おすすめ',
+    '学び',
+  ]
+
+  const hashtags = baseHashtags.slice(0, data.hashtagCount).map((t) => `#${t}`)
+
+  return {
+    caption,
+    hashtags,
+    tips: [
+      '投稿は平日12時・18〜21時が反応率が高い傾向があります',
+      'ファーストコメントにハッシュタグをまとめると本文がすっきりします',
+      '写真は明るく・縦長（4:5比率）だとフィードで目立ちやすいです',
     ],
   }
 }

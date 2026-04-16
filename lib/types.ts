@@ -94,8 +94,24 @@ export interface CompanySettings {
   signature: string
 }
 
+// ===== Instagram投稿 =====
+export interface InstagramFormData {
+  theme: string
+  purpose: 'awareness' | 'engagement' | 'announcement' | 'story'
+  tone: 'friendly' | 'professional' | 'casual' | 'inspiring'
+  useEmoji: boolean
+  hashtagCount: number
+  notes: string
+}
+
+export interface InstagramOutput {
+  caption: string
+  hashtags: string[]
+  tips: string[]
+}
+
 // ===== 履歴 =====
-export type DocumentType = 'email' | 'minutes' | 'proposal' | 'estimate' | 'reservation'
+export type DocumentType = 'email' | 'minutes' | 'proposal' | 'estimate' | 'reservation' | 'instagram'
 
 export interface HistoryItem {
   id: string
