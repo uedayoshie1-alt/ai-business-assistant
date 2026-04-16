@@ -6,7 +6,7 @@ import { Settings, Bell, ChevronRight } from 'lucide-react'
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard': { title: 'ダッシュボード', description: '今日の業務をスタートしましょう' },
-  '/email': { title: '営業メール作成', description: 'AIが自然な営業メールを作成します' },
+  '/email': { title: 'メール', description: 'AIが自然なメールを作成します' },
   '/minutes': { title: '議事録作成', description: '会議メモを整理された議事録に変換します' },
   '/customers': { title: '顧客リスト', description: '講座申し込み顧客の一覧・管理' },
   '/estimate': { title: '見積作成', description: '見積書の作成・管理' },

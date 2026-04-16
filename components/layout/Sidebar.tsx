@@ -26,7 +26,7 @@ const navItems = [
   {
     section: '業務アシスタント',
     items: [
-      { href: '/email', label: '営業メール', icon: Mail, badge: null },
+      { href: '/email', label: 'メール', icon: Mail, badge: null },
       { href: '/minutes', label: '議事録', icon: FileText, badge: null },
       { href: '/customers', label: '顧客リスト', icon: Users, badge: null },
       { href: '/estimate', label: '見積', icon: Calculator, badge: 'soon' },
