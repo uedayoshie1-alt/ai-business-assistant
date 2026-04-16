@@ -51,11 +51,11 @@ export function Header() {
         {/* ユーザーアバター */}
         <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
           <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-xs font-bold text-blue-700">山</span>
+            <span className="text-xs font-bold text-blue-700">上</span>
           </div>
           <div className="hidden sm:block">
-            <p className="text-xs font-medium text-gray-900 leading-tight">山田 太郎</p>
-            <p className="text-[11px] text-gray-400 leading-tight">サンプル株式会社</p>
+            <p className="text-xs font-medium text-gray-900 leading-tight">上田 良江</p>
+            <p className="text-[11px] text-gray-400 leading-tight">ハッピーステート株式会社</p>
           </div>
         </div>
       </div>

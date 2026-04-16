@@ -19,13 +19,18 @@ const filterTypes: { value: DocumentType | 'all'; label: string }[] = [
 export function HistoryList() {
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<DocumentType | 'all'>('all')
+  const [history, setHistory] = useState(sampleHistory)
 
-  const filtered = sampleHistory.filter((item) => {
+  const filtered = history.filter((item) => {
     const matchType = typeFilter === 'all' || item.type === typeFilter
     const matchSearch = item.title.toLowerCase().includes(search.toLowerCase()) ||
       item.preview.toLowerCase().includes(search.toLowerCase())
     return matchType && matchSearch
   })
+
+  const handleDelete = (id: string) => {
+    setHistory((prev) => prev.filter((item) => item.id !== id))
+  }
 
   return (
     <div className="max-w-4xl">
@@ -101,7 +106,10 @@ export function HistoryList() {
                 <button className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 transition-colors">
                   <Download size={14} />
                 </button>
-                <button className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors">
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                >
                   <Trash2 size={14} />
                 </button>
               </div>
