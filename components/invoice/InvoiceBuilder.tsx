@@ -34,7 +34,7 @@ export function InvoiceBuilder() {
     invoiceTo: '',
     issueDate: new Date().toISOString().slice(0, 10),
     dueDate: '',
-    invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+    invoiceNumber: `MEI-${Date.now().toString().slice(-6)}`,
     memo: '',
   })
   const inputRef = useRef<HTMLInputElement>(null)
@@ -143,7 +143,7 @@ export function InvoiceBuilder() {
       <div className="flex items-center gap-3 bg-teal-50 border border-teal-100 rounded-xl px-4 py-3">
         <div className="w-1.5 h-10 bg-teal-400 rounded-full shrink-0" />
         <div>
-          <p className="text-sm font-medium text-teal-900">CSV・Excelをアップロードするだけで請求書を自動生成します</p>
+          <p className="text-sm font-medium text-teal-900">CSV・Excelをアップロードするだけで明細書を自動生成します</p>
           <p className="text-xs text-teal-600 mt-0.5">列の順番：<span className="font-semibold">品名 / 数量 / 単価</span>　でファイルをご用意ください</p>
         </div>
       </div>
@@ -190,7 +190,7 @@ export function InvoiceBuilder() {
         </div>
       )}
 
-      {/* プレビュー＋請求書情報 */}
+      {/* プレビュー＋明細書情報 */}
       {(status === 'preview' || status === 'sending') && (
         <>
           {/* ファイル名 */}
@@ -206,11 +206,11 @@ export function InvoiceBuilder() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* 請求書情報 */}
+            {/* 明細書情報 */}
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-              <p className="text-sm font-semibold text-gray-800 pb-3 border-b border-gray-50">請求書情報</p>
+              <p className="text-sm font-semibold text-gray-800 pb-3 border-b border-gray-50">明細書情報</p>
               <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">請求番号</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1">明細番号</label>
                 <input
                   value={info.invoiceNumber}
                   onChange={(e) => setInfo((p) => ({ ...p, invoiceNumber: e.target.value }))}
@@ -322,12 +322,12 @@ export function InvoiceBuilder() {
             {status === 'sending' ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                請求書を生成中…
+                明細書を生成中…
               </>
             ) : (
               <>
                 <Send size={16} />
-                GASで請求書を生成する
+                GASで明細書を生成する
               </>
             )}
           </button>
@@ -351,7 +351,7 @@ export function InvoiceBuilder() {
             <CheckCircle2 size={28} className="text-teal-500" />
           </div>
           <div className="text-center">
-            <p className="text-base font-semibold text-gray-900">請求書が生成されました</p>
+            <p className="text-base font-semibold text-gray-900">明細書が生成されました</p>
             <p className="text-xs text-gray-400 mt-1">Googleドライブに保存されています</p>
           </div>
           <a
@@ -361,13 +361,13 @@ export function InvoiceBuilder() {
             className="flex items-center gap-2 px-6 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition-colors"
           >
             <ExternalLink size={14} />
-            請求書を開く（PDF）
+            明細書を開く（PDF）
           </a>
           <button
             onClick={() => { setStatus('idle'); setItems([]); setFileName(''); setResultUrl('') }}
             className="text-xs text-gray-400 hover:text-gray-600"
           >
-            新しい請求書を作成する
+            新しい明細書を作成する
           </button>
         </div>
       )}

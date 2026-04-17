@@ -25,7 +25,7 @@ export function getDocTypeLabel(type: DocumentType): string {
     estimate: '見積',
     reservation: '予約対応',
     instagram: 'Instagram',
-    invoice: '請求書',
+    invoice: '明細書',
   }
   return labels[type]
 }
