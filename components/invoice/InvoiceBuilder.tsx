@@ -54,20 +54,50 @@ export function InvoiceBuilder() {
       const ws = wb.Sheets[wb.SheetNames[0]]
       const rows: string[][] = XLSX.utils.sheet_to_json(ws, { header: 1 })
 
+      if (rows.length < 2) {
+        setErrorMsg('データが空です。')
+        setStatus('idle')
+        return
+      }
+
+      // ヘッダー行からカラム位置を自動判別
+      const headers = rows[0].map((h) => String(h ?? '').trim())
+      const find = (keywords: string[]) =>
+        headers.findIndex((h) => keywords.some((k) => h.includes(k)))
+
+      const colName      = find(['品名', '商品名', '工事項目', '項目', '内容', '摘要'])
+      const colQty       = find(['数量'])
+      const colUnit      = find(['単位'])
+      const colPrice     = find(['単価'])
+      const colTax       = find(['税率'])
+      const colAmount    = find(['金額'])
+
+      // 品名・単価が見つからなければ列番号でフォールバック
+      const nameIdx  = colName  >= 0 ? colName  : 0
+      const qtyIdx   = colQty   >= 0 ? colQty   : 1
+      const unitIdx  = colUnit  >= 0 ? colUnit  : 2
+      const priceIdx = colPrice >= 0 ? colPrice : 3
+      const taxIdx   = colTax   >= 0 ? colTax   : -1
+      const amtIdx   = colAmount >= 0 ? colAmount : -1
+
       const parsed: LineItem[] = []
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
-        if (!row || !row[0]) continue
-        const name = String(row[0]).trim()
-        const quantity = Number(row[1]) || 1
-        const unit = String(row[2] || '式').trim()
-        const unitPrice = Number(row[3]) || 0
-        const taxRate = Number(row[4]) === 8 ? 8 : 10
-        parsed.push({ name, quantity, unit, unitPrice, taxRate: taxRate as 10 | 8, amount: quantity * unitPrice })
+        if (!row || !row[nameIdx]) continue
+        const name      = String(row[nameIdx]).trim()
+        if (!name) continue
+        const quantity  = Number(row[qtyIdx])  || 1
+        const unit      = String(row[unitIdx] ?? '式').trim() || '式'
+        const unitPrice = Number(row[priceIdx]) || 0
+        const taxRate   = taxIdx >= 0 ? (Number(row[taxIdx]) === 8 ? 8 : 10) : 10
+        const amount    = amtIdx >= 0 && Number(row[amtIdx])
+          ? Number(row[amtIdx])
+          : quantity * unitPrice
+        parsed.push({ name, quantity, unit, unitPrice, taxRate: taxRate as 10 | 8, amount })
       }
 
       if (parsed.length === 0) {
-        setErrorMsg('データが読み込めませんでした。列の順番：品名 / 数量 / 単位 / 単価 / 税率 を確認してください。')
+        setErrorMsg('データが読み込めませんでした。ヘッダー行（1行目）に「品名」「数量」「単価」などの列名が含まれているか確認してください。')
         setStatus('idle')
         return
       }
