@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Sparkles,
   Camera,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -30,6 +31,7 @@ const navItems = [
       { href: '/email', label: 'メール', icon: Mail, badge: null },
       { href: '/minutes', label: '議事録', icon: FileText, badge: null },
       { href: '/instagram', label: 'Instagram投稿', icon: Camera, badge: null },
+      { href: '/invoice', label: '請求書作成', icon: Receipt, badge: null },
       { href: '/customers', label: '顧客リスト', icon: Users, badge: null },
       { href: '/estimate', label: '見積', icon: Calculator, badge: 'soon' },
       { href: '/reservation', label: '予約対応', icon: CalendarCheck, badge: 'soon' },

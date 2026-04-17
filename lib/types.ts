@@ -111,7 +111,7 @@ export interface InstagramOutput {
 }
 
 // ===== 履歴 =====
-export type DocumentType = 'email' | 'minutes' | 'proposal' | 'estimate' | 'reservation' | 'instagram'
+export type DocumentType = 'email' | 'minutes' | 'proposal' | 'estimate' | 'reservation' | 'instagram' | 'invoice'
 
 export interface HistoryItem {
   id: string

@@ -25,6 +25,7 @@ export function getDocTypeLabel(type: DocumentType): string {
     estimate: '見積',
     reservation: '予約対応',
     instagram: 'Instagram',
+    invoice: '請求書',
   }
   return labels[type]
 }
@@ -55,6 +56,7 @@ export function getDocTypeColor(type: DocumentType): string {
     estimate: 'bg-orange-100 text-orange-700',
     reservation: 'bg-pink-100 text-pink-700',
     instagram: 'bg-rose-100 text-rose-700',
+    invoice: 'bg-teal-100 text-teal-700',
   }
   return colors[type]
 }
