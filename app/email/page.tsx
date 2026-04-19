@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { EmailForm } from '@/components/email/EmailForm'
 import { EmailOutput } from '@/components/email/EmailOutput'
 import { EmailTemplates } from '@/components/email/EmailTemplates'
+import { GmailAutoReply } from '@/components/email/GmailAutoReply'
 import { generateEmail } from '@/lib/mock-generators'
 import type { EmailFormData, EmailOutput as EmailOutputType } from '@/lib/types'
 
@@ -18,7 +19,7 @@ const defaultFormData: EmailFormData = {
   hasAttachment: false,
 }
 
-type Tab = 'compose' | 'templates'
+type Tab = 'compose' | 'templates' | 'gmail'
 
 export default function EmailPage() {
   const [tab, setTab] = useState<Tab>('compose')
@@ -61,6 +62,16 @@ export default function EmailPage() {
           >
             テンプレ管理
           </button>
+          <button
+            onClick={() => setTab('gmail')}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === 'gmail'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Gmail自動返信
+          </button>
         </div>
 
         {tab === 'compose' ? (
@@ -96,8 +107,10 @@ export default function EmailPage() {
               </div>
             </div>
           </>
-        ) : (
+        ) : tab === 'templates' ? (
           <EmailTemplates />
+        ) : (
+          <GmailAutoReply />
         )}
       </div>
     </AppLayout>

@@ -40,14 +40,15 @@ var SKIP_SENDERS = [
 // ==============================
 function checkAndReplyEmails() {
   var label = getOrCreateLabel(PROCESSED_LABEL)
+  var processed = 0
+  var skipped = 0
 
-  // 未処理の未読メールを取得
   var query = 'is:unread -label:' + PROCESSED_LABEL
   var threads = GmailApp.search(query, 0, MAX_EMAILS)
 
   if (threads.length === 0) {
     Logger.log('未処理の未読メールはありませんでした')
-    return
+    return { processed: 0, skipped: 0 }
   }
 
   Logger.log(threads.length + '件のメールを処理します')
@@ -61,6 +62,7 @@ function checkAndReplyEmails() {
       // 自分のメールはスキップ
       if (fromAddr.indexOf(MY_EMAIL) >= 0) {
         thread.addLabel(label)
+        skipped++
         return
       }
 
@@ -71,6 +73,7 @@ function checkAndReplyEmails() {
       })
       if (skipFlag) {
         thread.addLabel(label)
+        skipped++
         return
       }
 
@@ -80,34 +83,32 @@ function checkAndReplyEmails() {
 
       Logger.log('処理中: ' + subject + ' / from: ' + senderName)
 
-      // Gemini AIで返信文を生成
       var replyText = generateReply(subject, body, senderName)
 
       if (!replyText) {
         Logger.log('返信文の生成に失敗しました: ' + subject)
+        skipped++
         return
       }
 
-      // Gmailに下書きとして保存
       GmailApp.createDraft(
         lastMsg.getFrom(),
         'Re: ' + subject,
         replyText,
-        {
-          name: MY_NAME + '（' + COMPANY_NAME + '）',
-          replyTo: MY_EMAIL,
-        }
+        { name: MY_NAME + '（' + COMPANY_NAME + '）', replyTo: MY_EMAIL }
       )
 
-      // 処理済みラベルを付ける
       thread.addLabel(label)
-
+      processed++
       Logger.log('下書き保存完了: ' + subject)
 
     } catch (err) {
       Logger.log('エラー: ' + err.message)
+      skipped++
     }
   })
+
+  return { processed: processed, skipped: skipped }
 }
 
 // ==============================
@@ -199,6 +200,28 @@ function getOrCreateLabel(labelName) {
     if (labels[i].getName() === labelName) return labels[i]
   }
   return GmailApp.createLabel(labelName)
+}
+
+// ==============================
+// アプリからの手動実行用エンドポイント
+// ==============================
+function doPost(e) {
+  try {
+    var result = checkAndReplyEmails()
+    return ContentService
+      .createTextOutput(JSON.stringify(result || { processed: 0, skipped: 0 }))
+      .setMimeType(ContentService.MimeType.JSON)
+  } catch (err) {
+    return ContentService
+      .createTextOutput(JSON.stringify({ processed: 0, skipped: 0, error: err.message }))
+      .setMimeType(ContentService.MimeType.JSON)
+  }
+}
+
+function doGet() {
+  return ContentService
+    .createTextOutput(JSON.stringify({ status: 'BizAssist AI Gmail自動返信 is running' }))
+    .setMimeType(ContentService.MimeType.JSON)
 }
 
 // ==============================
