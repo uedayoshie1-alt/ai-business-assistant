@@ -1,194 +1,315 @@
 'use client'
 
-import { useState } from 'react'
-import { FormField, Input, Textarea } from '@/components/ui/FormField'
-import { Button } from '@/components/ui/Button'
-import { Plus, Trash2, Lock } from 'lucide-react'
-import type { EstimateFormData, EstimateItem } from '@/lib/types'
+import { useState, useEffect, useRef } from 'react'
+import { Plus, Trash2, Download, Save, FileText, RotateCcw } from 'lucide-react'
 
-const initialItem = (): EstimateItem => ({
+type EstimateItem = {
+  id: string
+  name: string
+  quantity: number
+  unitPrice: number
+  note: string
+}
+
+type Estimate = {
+  id: string
+  estimateNo: string
+  clientName: string
+  issueDate: string
+  validUntil: string
+  items: EstimateItem[]
+  taxRate: number
+  notes: string
+  companyName: string
+  savedAt: string
+}
+
+const newItem = (): EstimateItem => ({
   id: Math.random().toString(36).slice(2),
-  name: '',
-  quantity: 1,
-  unitPrice: 0,
-  note: '',
+  name: '', quantity: 1, unitPrice: 0, note: '',
 })
 
+const genNo = () => {
+  const d = new Date()
+  return `EST-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${Math.floor(Math.random()*1000).toString().padStart(3,'0')}`
+}
+
 export function EstimateForm() {
-  const [data, setData] = useState<EstimateFormData>({
+  const printRef = useRef<HTMLDivElement>(null)
+
+  const [estimate, setEstimate] = useState<Estimate>({
+    id: Math.random().toString(36).slice(2),
+    estimateNo: genNo(),
     clientName: '',
     issueDate: new Date().toISOString().split('T')[0],
     validUntil: '',
-    items: [initialItem()],
+    items: [newItem()],
     taxRate: 10,
     notes: '',
+    companyName: '',
+    savedAt: '',
   })
+  const [savedList, setSavedList] = useState<Estimate[]>([])
+  const [showHistory, setShowHistory] = useState(false)
 
-  const addItem = () => setData({ ...data, items: [...data.items, initialItem()] })
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('estimates')
+      if (saved) setSavedList(JSON.parse(saved))
+    } catch {}
+  }, [])
 
-  const removeItem = (id: string) =>
-    setData({ ...data, items: data.items.filter((item) => item.id !== id) })
-
-  const updateItem = (id: string, key: keyof EstimateItem, value: string | number) =>
-    setData({
-      ...data,
-      items: data.items.map((item) => item.id === id ? { ...item, [key]: value } : item),
-    })
-
-  const subtotal = data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-  const tax = Math.floor(subtotal * (data.taxRate / 100))
+  const subtotal = estimate.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0)
+  const tax = Math.floor(subtotal * estimate.taxRate / 100)
   const total = subtotal + tax
 
+  function addItem() {
+    setEstimate(e => ({ ...e, items: [...e.items, newItem()] }))
+  }
+
+  function removeItem(id: string) {
+    setEstimate(e => ({ ...e, items: e.items.filter(i => i.id !== id) }))
+  }
+
+  function updateItem(id: string, key: keyof EstimateItem, value: string | number) {
+    setEstimate(e => ({ ...e, items: e.items.map(i => i.id === id ? { ...i, [key]: value } : i) }))
+  }
+
+  function saveEstimate() {
+    const saved = { ...estimate, savedAt: new Date().toISOString() }
+    const updated = [saved, ...savedList.filter(s => s.id !== saved.id)]
+    setSavedList(updated)
+    try { localStorage.setItem('estimates', JSON.stringify(updated)) } catch {}
+    alert('保存しました')
+  }
+
+  function loadEstimate(e: Estimate) {
+    setEstimate(e)
+    setShowHistory(false)
+  }
+
+  function deleteEstimate(id: string) {
+    const updated = savedList.filter(s => s.id !== id)
+    setSavedList(updated)
+    try { localStorage.setItem('estimates', JSON.stringify(updated)) } catch {}
+  }
+
+  function newEstimate() {
+    setEstimate({
+      id: Math.random().toString(36).slice(2),
+      estimateNo: genNo(),
+      clientName: '',
+      issueDate: new Date().toISOString().split('T')[0],
+      validUntil: '',
+      items: [newItem()],
+      taxRate: 10,
+      notes: '',
+      companyName: '',
+      savedAt: '',
+    })
+  }
+
+  function printEstimate() {
+    window.print()
+  }
+
+  const fmt = (n: number) => `¥${n.toLocaleString('ja-JP')}`
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* 近日実装バナー */}
-      <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-          <Lock size={15} className="text-amber-600" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-amber-800">次フェーズで実装予定</p>
-          <p className="text-xs text-amber-600 mt-0.5">現在はUIのプレビューです。PDF出力・保存機能は次バージョンで実装します。</p>
-        </div>
-      </div>
+    <div className="max-w-4xl space-y-4">
+      {/* 印刷スタイル */}
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          #print-area, #print-area * { visibility: visible; }
+          #print-area { position: fixed; top: 0; left: 0; width: 100%; padding: 40px; }
+          .no-print { display: none !important; }
+        }
+      `}</style>
 
-      {/* ヘッダー情報 */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <p className="text-sm font-semibold text-gray-700 border-b border-gray-50 pb-3">基本情報</p>
-        <div className="grid grid-cols-3 gap-3">
-          <FormField label="顧客名" required>
-            <Input
-              placeholder="例：田中商事 御中"
-              value={data.clientName}
-              onChange={(e) => setData({ ...data, clientName: e.target.value })}
-            />
-          </FormField>
-          <FormField label="発行日">
-            <Input
-              type="date"
-              value={data.issueDate}
-              onChange={(e) => setData({ ...data, issueDate: e.target.value })}
-            />
-          </FormField>
-          <FormField label="有効期限">
-            <Input
-              type="date"
-              value={data.validUntil}
-              onChange={(e) => setData({ ...data, validUntil: e.target.value })}
-            />
-          </FormField>
-        </div>
-      </div>
-
-      {/* 明細 */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <p className="text-sm font-semibold text-gray-700 border-b border-gray-50 pb-3 mb-4">明細</p>
-
-        <div className="space-y-3">
-          {/* ヘッダー行 */}
-          <div className="grid grid-cols-12 gap-2 px-2">
-            {['品目・サービス名', '数量', '単価（円）', '金額（円）', ''].map((h, i) => (
-              <div
-                key={h}
-                className={`text-xs font-medium text-gray-400 ${
-                  i === 0 ? 'col-span-5' : i === 1 ? 'col-span-2' : i === 2 ? 'col-span-2' : i === 3 ? 'col-span-2' : 'col-span-1'
-                }`}
-              >
-                {h}
-              </div>
-            ))}
+      {/* ヘッダー操作 */}
+      <div className="no-print flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center">
+            <FileText size={16} className="text-white" />
           </div>
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">見積書作成</h1>
+            <p className="text-xs text-slate-500">見積書の作成・PDF出力・保存ができます</p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
+            <FileText size={14} />履歴 ({savedList.length})
+          </button>
+          <button onClick={newEstimate}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50">
+            <RotateCcw size={14} />新規
+          </button>
+          <button onClick={saveEstimate}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
+            <Save size={14} />保存
+          </button>
+          <button onClick={printEstimate}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-xl">
+            <Download size={14} />PDF出力
+          </button>
+        </div>
+      </div>
 
-          {data.items.map((item) => (
-            <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
-              <div className="col-span-5">
-                <Input
-                  placeholder="例：コンサルティング費用"
-                  value={item.name}
-                  onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                />
-              </div>
-              <div className="col-span-2">
-                <Input
-                  type="number"
-                  min="1"
-                  value={item.quantity}
-                  onChange={(e) => updateItem(item.id, 'quantity', Number(e.target.value))}
-                />
-              </div>
-              <div className="col-span-2">
-                <Input
-                  type="number"
-                  min="0"
-                  step="1000"
-                  value={item.unitPrice}
-                  onChange={(e) => updateItem(item.id, 'unitPrice', Number(e.target.value))}
-                />
-              </div>
-              <div className="col-span-2">
-                <div className="px-3 py-2 bg-gray-50 rounded-lg text-sm text-gray-600 text-right">
-                  ¥{(item.quantity * item.unitPrice).toLocaleString()}
+      {/* 履歴パネル */}
+      {showHistory && (
+        <div className="no-print bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+          <h3 className="text-sm font-bold text-slate-700 mb-3">保存済み見積書</h3>
+          {savedList.length === 0 ? (
+            <p className="text-xs text-slate-400 text-center py-4">保存された見積書はありません</p>
+          ) : (
+            <div className="space-y-2">
+              {savedList.map(s => (
+                <div key={s.id} className="flex items-center justify-between px-3 py-2.5 bg-slate-50 rounded-xl">
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700">{s.estimateNo} — {s.clientName || '（顧客名未設定）'}</p>
+                    <p className="text-[11px] text-slate-400">{fmt(s.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0) * (1 + s.taxRate/100))} · {new Date(s.savedAt).toLocaleDateString('ja-JP')}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => loadEstimate(s)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium">開く</button>
+                    <button onClick={() => deleteEstimate(s.id)}
+                      className="text-xs text-red-400 hover:text-red-600">削除</button>
+                  </div>
                 </div>
-              </div>
-              <div className="col-span-1 flex justify-center">
-                <button
-                  onClick={() => removeItem(item.id)}
-                  className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 見積書本体（印刷対象） */}
+      <div id="print-area" ref={printRef}
+        className="bg-white rounded-2xl border border-slate-100 shadow-sm p-8 space-y-6">
+
+        {/* タイトル */}
+        <div className="text-center border-b border-slate-100 pb-6">
+          <h2 className="text-2xl font-bold text-slate-900 tracking-widest">見　積　書</h2>
+          <p className="text-xs text-slate-400 mt-1">見積番号: {estimate.estimateNo}</p>
+        </div>
+
+        {/* 宛先・発行者情報 */}
+        <div className="grid grid-cols-2 gap-8">
+          <div className="space-y-3">
+            <div>
+              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">宛先</label>
+              <input value={estimate.clientName}
+                onChange={e => setEstimate(es => ({ ...es, clientName: e.target.value }))}
+                placeholder="顧客名・会社名"
+                className="w-full text-sm font-semibold text-slate-800 border-b-2 border-slate-200 focus:border-blue-400 outline-none py-1 bg-transparent" />
+              <span className="text-sm text-slate-600"> 御中</span>
+            </div>
+          </div>
+          <div className="space-y-2 text-sm text-right">
+            <input value={estimate.companyName}
+              onChange={e => setEstimate(es => ({ ...es, companyName: e.target.value }))}
+              placeholder="会社名・事務所名"
+              className="text-sm font-semibold text-slate-800 border-b border-slate-200 focus:border-blue-400 outline-none py-1 bg-transparent text-right w-full" />
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+              <span className="text-right">発行日</span>
+              <input type="date" value={estimate.issueDate}
+                onChange={e => setEstimate(es => ({ ...es, issueDate: e.target.value }))}
+                className="text-xs text-slate-700 border-b border-slate-200 focus:border-blue-400 outline-none bg-transparent text-right" />
+              <span className="text-right">有効期限</span>
+              <input type="date" value={estimate.validUntil}
+                onChange={e => setEstimate(es => ({ ...es, validUntil: e.target.value }))}
+                className="text-xs text-slate-700 border-b border-slate-200 focus:border-blue-400 outline-none bg-transparent text-right" />
+            </div>
+          </div>
+        </div>
+
+        {/* 合計金額 */}
+        <div className="bg-slate-50 rounded-xl px-5 py-3 flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-600">合計金額（税込）</span>
+          <span className="text-2xl font-bold text-blue-700">{fmt(total)}</span>
+        </div>
+
+        {/* 明細テーブル */}
+        <div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-800 text-white">
+                {['品目・サービス名', '数量', '単価', '金額'].map(h => (
+                  <th key={h} className={`px-3 py-2.5 text-xs font-semibold text-left ${h === '数量' || h === '単価' || h === '金額' ? 'text-right w-24' : ''}`}>{h}</th>
+                ))}
+                <th className="w-8 no-print" />
+              </tr>
+            </thead>
+            <tbody>
+              {estimate.items.map((item, idx) => (
+                <tr key={item.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                  <td className="px-3 py-2">
+                    <input value={item.name} placeholder="品目・サービス名"
+                      onChange={e => updateItem(item.id, 'name', e.target.value)}
+                      className="w-full text-sm text-slate-800 outline-none bg-transparent border-b border-transparent focus:border-blue-300" />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <input type="number" value={item.quantity} min={1}
+                      onChange={e => updateItem(item.id, 'quantity', Number(e.target.value))}
+                      className="w-16 text-sm text-right text-slate-700 outline-none bg-transparent border-b border-transparent focus:border-blue-300" />
+                  </td>
+                  <td className="px-3 py-2 text-right">
+                    <input type="number" value={item.unitPrice} min={0} step={1000}
+                      onChange={e => updateItem(item.id, 'unitPrice', Number(e.target.value))}
+                      className="w-24 text-sm text-right text-slate-700 outline-none bg-transparent border-b border-transparent focus:border-blue-300" />
+                  </td>
+                  <td className="px-3 py-2 text-right text-sm font-medium text-slate-800">
+                    {fmt(item.quantity * item.unitPrice)}
+                  </td>
+                  <td className="px-1 no-print">
+                    <button onClick={() => removeItem(item.id)}
+                      className="w-7 h-7 flex items-center justify-center text-slate-300 hover:text-red-400 rounded-lg">
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <button onClick={addItem}
+            className="no-print mt-2 flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 px-3 py-1.5">
+            <Plus size={13} />行を追加
+          </button>
+
+          {/* 小計・消費税・合計 */}
+          <div className="mt-4 border-t border-slate-200 pt-3 space-y-1.5 max-w-xs ml-auto">
+            <div className="flex justify-between text-sm text-slate-500">
+              <span>小計</span><span>{fmt(subtotal)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-slate-500 items-center">
+              <span>消費税</span>
+              <div className="flex items-center gap-2">
+                <select value={estimate.taxRate}
+                  onChange={e => setEstimate(es => ({ ...es, taxRate: Number(e.target.value) }))}
+                  className="no-print text-xs border border-slate-200 rounded px-1 py-0.5">
+                  <option value={10}>10%</option>
+                  <option value={8}>8%</option>
+                </select>
+                <span>{fmt(tax)}</span>
               </div>
             </div>
-          ))}
-        </div>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          icon={<Plus size={14} />}
-          onClick={addItem}
-          className="mt-3 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-        >
-          行を追加
-        </Button>
-
-        {/* 合計 */}
-        <div className="mt-5 border-t border-gray-100 pt-4 space-y-2">
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>小計</span>
-            <span>¥{subtotal.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>消費税（{data.taxRate}%）</span>
-            <span>¥{tax.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-base font-bold text-gray-900 pt-2 border-t border-gray-100">
-            <span>合計金額</span>
-            <span className="text-blue-700">¥{total.toLocaleString()}</span>
+            <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200">
+              <span>合計</span><span className="text-blue-700">{fmt(total)}</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* 備考 */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-        <FormField label="備考">
-          <Textarea
-            placeholder="例：お支払いは納品後30日以内にお願いします。"
-            value={data.notes}
-            onChange={(e) => setData({ ...data, notes: e.target.value })}
-            rows={3}
-          />
-        </FormField>
-      </div>
-
-      {/* 操作 */}
-      <div className="flex items-center gap-3">
-        <Button variant="primary" disabled className="opacity-50 cursor-not-allowed">
-          PDF出力（次フェーズ）
-        </Button>
-        <Button variant="secondary" disabled className="opacity-50 cursor-not-allowed">
-          保存（次フェーズ）
-        </Button>
+        {/* 備考 */}
+        <div className="border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold text-slate-500 mb-2">備考</p>
+          <textarea value={estimate.notes} rows={3}
+            onChange={e => setEstimate(es => ({ ...es, notes: e.target.value }))}
+            placeholder="お支払いは納品後30日以内にお願いします。"
+            className="w-full text-xs text-slate-600 outline-none bg-transparent resize-none border border-slate-100 rounded-lg p-2 focus:border-blue-200" />
+        </div>
       </div>
     </div>
   )

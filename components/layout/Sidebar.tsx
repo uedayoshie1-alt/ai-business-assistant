@@ -47,7 +47,7 @@ const navItems = [
       { href: '/minutes', label: '議事録', icon: FileText, badge: null },
       { href: '/invoice', label: '明細書作成', icon: Receipt, badge: null },
       { href: '/customers', label: '顧客リスト', icon: Users, badge: null },
-      { href: '/estimate', label: '見積', icon: Calculator, badge: 'soon' },
+      { href: '/estimate', label: '見積', icon: Calculator, badge: null },
     ],
   },
   {
