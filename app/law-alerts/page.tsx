@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   Bell, AlertTriangle, CheckCircle2, Clock, ChevronRight, X,
   ExternalLink, ChevronDown, ChevronUp, FileText, Sparkles,
-  ArrowRight, User, Calendar, Building2,
+  ArrowRight, User, Calendar, Building2, RefreshCw, Loader2,
 } from 'lucide-react'
 import { mockLawAlerts, type LawAlert, type LawAlertStatus, type LawAlertImportance } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
@@ -32,6 +32,29 @@ export default function LawAlertsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({})
   const [expandedDraft, setExpandedDraft] = useState<Record<string, boolean>>({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [generatedAt, setGeneratedAt] = useState<string | null>(null)
+
+  async function fetchLatestAlerts() {
+    setIsLoading(true)
+    try {
+      const res = await fetch('/api/law-alerts')
+      const data = await res.json()
+      if (data.alerts) {
+        setAlerts(data.alerts.map((a: LawAlert) => ({
+          ...a,
+          status: 'unconfirmed' as const,
+        })))
+        setGeneratedAt(data.generatedAt)
+      }
+    } catch (err) {
+      console.error('Failed to fetch law alerts:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => { fetchLatestAlerts() }, [])
 
   const filtered = alerts.filter(a =>
     (statusFilter === 'all' || a.status === statusFilter) &&
@@ -71,6 +94,21 @@ export default function LawAlertsPage() {
               <h1 className="text-xl font-bold text-slate-900">法改正アラート</h1>
             </div>
             <p className="text-sm text-slate-500 ml-10.5">AIが自動収集した法改正情報を整理・管理します</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {generatedAt && (
+              <p className="text-[11px] text-slate-400">
+                最終更新: {new Date(generatedAt).toLocaleString('ja-JP')}
+              </p>
+            )}
+            <button
+              onClick={fetchLatestAlerts}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-xl transition-colors shadow-sm disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+              {isLoading ? '取得中...' : '最新情報を取得'}
+            </button>
           </div>
         </div>
 
