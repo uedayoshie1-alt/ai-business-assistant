@@ -7,7 +7,7 @@ import {
   X, Building2, MapPin, Users, Sparkles, TrendingUp, ChevronDown,
   FileText, Calendar, Tag,
 } from 'lucide-react'
-import { mockSubsidies, mockClients, type Subsidy, type SubsidyStatus } from '@/lib/mock-data'
+import { mockSubsidies, type Subsidy, type SubsidyStatus } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 const statusConfig: Record<SubsidyStatus, { label: string; color: string }> = {
@@ -54,7 +54,6 @@ function ScoreCircle({ score }: { score: number }) {
 
 export default function SubsidyPage() {
   const [subsidies, setSubsidies] = useState<Subsidy[]>(mockSubsidies)
-  const [selectedClient, setSelectedClient] = useState(mockClients[0].name)
   const [region, setRegion] = useState('東京都')
   const [industry, setIndustry] = useState('IT・情報通信')
   const [employees, setEmployees] = useState('38')
@@ -127,21 +126,7 @@ export default function SubsidyPage() {
           <div className="w-72 shrink-0 space-y-4">
 
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-bold text-slate-800">顧問先・条件入力</h3>
-
-              <div>
-                <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">顧問先</label>
-                <select
-                  value={selectedClient}
-                  onChange={e => setSelectedClient(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 bg-white focus:outline-none focus:border-blue-400"
-                >
-                  {mockClients.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                  <option value="新規入力">— 新規入力 —</option>
-                </select>
-              </div>
+              <h3 className="text-sm font-bold text-slate-800">条件入力</h3>
 
               <div>
                 <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5 block">地域</label>
