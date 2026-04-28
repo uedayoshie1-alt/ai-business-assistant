@@ -40,7 +40,7 @@ export default function LawAlertsPage() {
     try {
       const res = await fetch('/api/law-alerts')
       const data = await res.json()
-      if (data.alerts) {
+      if (data.alerts && data.alerts.length > 0) {
         setAlerts(data.alerts.map((a: LawAlert) => ({
           ...a,
           status: 'unconfirmed' as const,

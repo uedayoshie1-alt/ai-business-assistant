@@ -46,12 +46,13 @@ export async function GET() {
 
   const today = new Date().toISOString().split('T')[0]
 
-  // RSS取得失敗時のフォールバック
   const rssSection = items.length > 0
     ? items.map((it, i) =>
         `[${i + 1}] タイトル: ${it.title}\n    日付: ${it.pubDate}\n    URL: ${it.link}\n    概要: ${it.description}`
       ).join('\n\n')
-    : `（RSS取得失敗）今日${today}現在で最新の労働・社会保険法令に関する改正情報を生成してください`
+    : `（RSS取得失敗 - 知識ベースで回答）
+${today}現在、社労士が最優先で対応すべき2025〜2026年の労働・社会保険法改正5件を生成してください。
+育児介護休業法、雇用保険法、社会保険適用拡大、最低賃金、障害者雇用率などから選んでください。`
 
   const prompt = `あなたは社会保険労務士向け法改正アラートシステムです。今日は${today}です。
 
