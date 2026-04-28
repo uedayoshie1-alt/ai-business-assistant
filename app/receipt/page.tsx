@@ -66,12 +66,15 @@ export default function ReceiptPage() {
       }
       const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
       const data = await res.json()
-      if (data.receipts) {
+      if (!res.ok) {
+        throw new Error(data.error || `サーバーエラー (${res.status})`)
+      }
+      if (data.receipts && data.receipts.length > 0) {
         setReceipts(prev => [...data.receipts, ...prev])
       }
     } catch (err) {
       console.error('Receipt analyze error:', err)
-      alert('エラーが発生しました: ' + String(err))
+      alert('エラー: ' + String(err))
     } finally {
       setIsImageProcessing(false)
     }
