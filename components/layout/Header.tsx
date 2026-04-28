@@ -25,14 +25,14 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 
 export function Header() {
   const pathname = usePathname()
-  const pageInfo = pageTitles[pathname] ?? { title: 'BizAssist AI', description: '' }
+  const pageInfo = pageTitles[pathname] ?? { title: 'TASUKU AI', description: '' }
 
   return (
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-10">
       {/* ページタイトル */}
       <div>
         <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
-          <span>BizAssist AI</span>
+          <span>TASUKU AI</span>
           <ChevronRight size={12} />
           <span className="text-gray-600">{pageInfo.title}</span>
         </div>

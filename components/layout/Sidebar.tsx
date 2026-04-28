@@ -8,7 +8,6 @@ import {
   FileText,
   Users,
   Calculator,
-  CalendarCheck,
   Settings,
   History,
   ChevronRight,
@@ -49,7 +48,6 @@ const navItems = [
       { href: '/invoice', label: '明細書作成', icon: Receipt, badge: null },
       { href: '/customers', label: '顧客リスト', icon: Users, badge: null },
       { href: '/estimate', label: '見積', icon: Calculator, badge: 'soon' },
-      { href: '/reservation', label: '予約対応', icon: CalendarCheck, badge: 'soon' },
     ],
   },
   {
@@ -76,8 +74,8 @@ export function Sidebar() {
             <Sparkles className="text-white" size={18} />
           </div>
           <div>
-            <p className="text-white font-bold text-sm leading-tight tracking-wide">BizAssist AI</p>
-            <p className="text-[11px] leading-tight" style={{ color: '#93C5FD' }}>社労士 AIダッシュボード</p>
+            <p className="text-white font-bold text-sm leading-tight tracking-wide">TASUKU AI</p>
+            <p className="text-[11px] leading-tight" style={{ color: '#93C5FD' }}>社労士 AI アシスタント</p>
           </div>
         </Link>
       </div>

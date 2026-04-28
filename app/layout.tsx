@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BizAssist AI - 社労士AIダッシュボード',
+  title: 'TASUKU AI - 社労士AIダッシュボード',
   description: '社労士事務所向けAI業務改善ダッシュボード。領収書AI仕分け・法改正アラート・助成金マッチングで提案力を強化。',
 }
 
