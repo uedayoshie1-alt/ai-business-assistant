@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BizAssist AI - AI業務アシスタント',
-  description: '中小企業向けAI業務代行パッケージ。営業メール・議事録・提案文の作成を効率化。',
+  title: 'BizAssist AI - 社労士AIダッシュボード',
+  description: '社労士事務所向けAI業務改善ダッシュボード。領収書AI仕分け・法改正アラート・助成金マッチングで提案力を強化。',
 }
 
 export default function RootLayout({

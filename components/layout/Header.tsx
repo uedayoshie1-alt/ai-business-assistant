@@ -5,16 +5,22 @@ import Link from 'next/link'
 import { Settings, Bell, ChevronRight } from 'lucide-react'
 
 const pageTitles: Record<string, { title: string; description: string }> = {
-  '/dashboard': { title: 'ダッシュボード', description: '今日の業務をスタートしましょう' },
-  '/email': { title: 'メール', description: 'AIが自然なメールを作成します' },
-  '/minutes': { title: '議事録作成', description: '会議メモを整理された議事録に変換します' },
-  '/instagram': { title: 'Instagram投稿作成', description: 'AIがInstagramの投稿文・ハッシュタグを作成します' },
-  '/invoice': { title: '明細書作成', description: 'CSV・Excelをアップロードして明細書を自動生成します' },
-  '/customers': { title: '顧客リスト', description: '講座申し込み顧客の一覧・管理' },
-  '/estimate': { title: '見積作成', description: '見積書の作成・管理' },
-  '/reservation': { title: '予約対応', description: '予約の確認・返信文の作成' },
-  '/settings': { title: '設定', description: '会社情報・テンプレートの管理' },
-  '/history': { title: '履歴', description: 'これまでに作成したドキュメントの一覧' },
+  '/dashboard':  { title: 'ダッシュボード',       description: '社労士AI業務ダッシュボード' },
+  '/receipt':    { title: '領収書AI仕分け',       description: '動画・画像から自動OCR・仕分け' },
+  '/law-alerts': { title: '法改正アラート',       description: 'AIが最新法改正情報を収集・整理します' },
+  '/subsidy':    { title: '助成金マッチング',     description: '顧問先の条件に合った助成金を自動検索' },
+  '/clients':    { title: '顧問先管理',           description: '顧問先の情報・アラート・助成金を一元管理' },
+  '/gas':        { title: 'GAS連携設定',          description: 'Google Sheets・Drive・メール通知を設定' },
+  '/reports':    { title: 'レポート',             description: 'AI業務改善の効果を可視化します' },
+  '/email':      { title: 'メール作成',           description: 'AIが自然なメールを作成します' },
+  '/minutes':    { title: '議事録作成',           description: '会議メモを整理された議事録に変換します' },
+  '/instagram':  { title: 'Instagram投稿作成',   description: 'AIがInstagramの投稿文・ハッシュタグを作成します' },
+  '/invoice':    { title: '明細書作成',           description: 'CSV・Excelをアップロードして明細書を自動生成します' },
+  '/customers':  { title: '顧客リスト',           description: '講座申し込み顧客の一覧・管理' },
+  '/estimate':   { title: '見積作成',             description: '見積書の作成・管理' },
+  '/reservation':{ title: '予約対応',             description: '予約の確認・返信文の作成' },
+  '/settings':   { title: '設定',                 description: '会社情報・テンプレートの管理' },
+  '/history':    { title: '履歴',                 description: 'これまでに作成したドキュメントの一覧' },
 }
 
 export function Header() {
