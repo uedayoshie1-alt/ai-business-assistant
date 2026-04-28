@@ -69,7 +69,6 @@ export default function ReceiptPage() {
       if (!res.ok) {
         throw new Error(data.error || `サーバーエラー (${res.status})`)
       }
-      alert('APIレスポンス: ' + JSON.stringify(data).slice(0, 300))
       if (data.receipts && data.receipts.length > 0) {
         setReceipts(prev => [...data.receipts, ...prev])
       }
