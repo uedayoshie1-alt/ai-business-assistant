@@ -7,7 +7,8 @@ import {
   ExternalLink, ChevronDown, ChevronUp, FileText, Sparkles,
   ArrowRight, User, Calendar, Building2, RefreshCw, Loader2,
 } from 'lucide-react'
-import { mockLawAlerts, type LawAlert, type LawAlertStatus, type LawAlertImportance } from '@/lib/mock-data'
+
+import { type LawAlert, type LawAlertStatus, type LawAlertImportance } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 
 const statusConfig: Record<LawAlertStatus, { label: string; color: string; icon: React.ElementType }> = {
@@ -26,7 +27,7 @@ const importanceConfig: Record<LawAlertImportance, { label: string; color: strin
 type StatusFilter = LawAlertStatus | 'all'
 
 export default function LawAlertsPage() {
-  const [alerts, setAlerts] = useState<LawAlert[]>(mockLawAlerts)
+  const [alerts, setAlerts] = useState<LawAlert[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [importanceFilter, setImportanceFilter] = useState<'all' | LawAlertImportance>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -43,7 +44,7 @@ export default function LawAlertsPage() {
       if (data.alerts && data.alerts.length > 0) {
         setAlerts(data.alerts.map((a: LawAlert) => ({
           ...a,
-          status: 'unconfirmed' as const,
+          status: a.status ?? 'unconfirmed',
         })))
         setGeneratedAt(data.generatedAt)
       }
@@ -54,7 +55,7 @@ export default function LawAlertsPage() {
     }
   }
 
-  useEffect(() => { /* 手動ボタンでのみ取得 */ }, [])
+  useEffect(() => { fetchLatestAlerts() }, [])
 
   const filtered = alerts.filter(a =>
     (statusFilter === 'all' || a.status === statusFilter) &&
@@ -339,7 +340,13 @@ export default function LawAlertsPage() {
             )
           })}
 
-          {filtered.length === 0 && (
+          {isLoading && alerts.length === 0 && (
+            <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
+              <Loader2 size={32} className="text-blue-400 mx-auto mb-3 animate-spin" />
+              <p className="text-slate-500 font-medium">最新の法改正情報を取得中...</p>
+            </div>
+          )}
+          {!isLoading && filtered.length === 0 && (
             <div className="text-center py-16 bg-white rounded-2xl border border-slate-100">
               <CheckCircle2 size={32} className="text-emerald-400 mx-auto mb-3" />
               <p className="text-slate-500 font-medium">該当するアラートはありません</p>

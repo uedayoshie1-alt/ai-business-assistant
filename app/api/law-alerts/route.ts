@@ -103,12 +103,14 @@ ${rssSection}
 ${egovSection}
 
 ---
-上記のデータをもとに、社労士が対応すべき重要な法改正・制度変更を5件選んでJSON配列のみを返してください。
+上記データから社労士が対応すべき法改正を5件選んでJSON配列のみを返してください。
 
-${hasSomeData ? `重要：
-- publishDateはRSSのpubDateまたはe-Govの公布日から変換（YYYY-MM-DD）
-- sourceUrlは上記データのURLをそのままコピー
-- e-Gov URLは https://elaws.e-gov.go.jp/document?lawid=XXXXX の形式` : `（外部データ取得失敗）${today}現在有効な2025〜2026年の労働・社会保険法改正を生成してください`}
+【厳守ルール】
+- 2025年1月1日以降の法改正のみ（2024年以前は絶対に含めない）
+- publishDateはRSSのpubDateまたはe-Govの公布日をYYYY-MM-DDに変換
+- sourceUrlは上記データのURLをそのままコピー（生成しない）
+- 労働・社会保険分野を優先
+${!hasSomeData ? `（外部データ取得失敗）${today}現在の2025〜2026年の労働・社会保険法改正を生成` : ''}
 
 [
   {
