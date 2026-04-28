@@ -29,7 +29,7 @@ export default function ReceiptPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCategory, setEditCategory] = useState('')
   const [editModalId, setEditModalId] = useState<string | null>(null)
-  const [editFields, setEditFields] = useState({ date: '', vendor: '', amount: '', purpose: '', accountCategory: '', taxRate: 10 })
+  const [editFields, setEditFields] = useState<{ date: string; vendor: string; amount: string; purpose: string; accountCategory: string; taxRate: 8 | 10 }>({ date: '', vendor: '', amount: '', purpose: '', accountCategory: '', taxRate: 10 })
   const [isVideoProcessing, setIsVideoProcessing] = useState(false)
   const [isImageProcessing, setIsImageProcessing] = useState(false)
   const [videoFileName, setVideoFileName] = useState<string | null>(null)
@@ -538,7 +538,7 @@ export default function ReceiptPage() {
                   <div>
                     <label className="text-[11px] text-slate-500 font-medium block mb-1">税率</label>
                     <select value={editFields.taxRate}
-                      onChange={e => setEditFields(f => ({ ...f, taxRate: Number(e.target.value) }))}
+                      onChange={e => setEditFields(f => ({ ...f, taxRate: Number(e.target.value) as 8 | 10 }))}
                       className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400">
                       <option value={10}>10%</option>
                       <option value={8}>8%（軽減税率）</option>
