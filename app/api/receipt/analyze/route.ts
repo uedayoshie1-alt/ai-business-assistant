@@ -46,16 +46,28 @@ function extractReceiptData(text: string) {
     if (numbers.length > 0) amount = Math.max(...numbers)
   }
 
-  // 支払先（最初の意味のある行）
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1 && !/^\d+$/.test(l))
-  const vendor = lines[0] || '不明'
+  // 支払先（タイトル行・数字のみ行を除外し、会社名を優先）
+  const skipWords = ['領収書', 'りょうしゅうしょ', 'receipt', 'RECEIPT', '様', 'No.', '発行日', '但し', '内訳']
+  const lines = text.split('\n').map(l => l.trim()).filter(l =>
+    l.length > 1 &&
+    !/^\d+$/.test(l) &&
+    !skipWords.some(w => l.includes(w))
+  )
+  // 株式会社・有限会社などを優先
+  const companyLine = lines.find(l => /株式会社|有限会社|合同会社|一般社団法人|NPO/.test(l))
+  const vendor = companyLine || lines[0] || '不明'
+
+  // 但し書き（用途）を抽出
+  const tadashiMatch = text.match(/但し\s*(.+?)(?:\s*として|\s*\n|$)/)
+  const purpose = tadashiMatch ? tadashiMatch[1].trim() : vendor
 
   // 税率
   const taxRate = text.includes('10%') ? 10 : text.includes('8%') ? 8 : 10
 
   // 勘定科目推定
   const categoryRules: [string, string[]][] = [
-    ['旅費交通費', ['タクシー', '電車', '新幹線', 'バス', '交通', '駐車', 'Suica', 'PASMO', 'IC']],
+    ['研修費',    ['講座', '受講料', 'セミナー', '研修', '講習', '勉強会', 'スクール', '資格']],
+    ['旅費交通費', ['タクシー', '電車', '新幹線', 'バス', '交通', '駐車', 'Suica', 'PASMO', 'IC', '運賃']],
     ['会議費',    ['コーヒー', 'カフェ', 'スタバ', 'スターバックス', 'ドトール', 'ミスド', 'ベローチェ']],
     ['交際費',    ['レストラン', '食事', '居酒屋', '料理', '飲食', 'ランチ', 'ディナー']],
     ['消耗品費',  ['コンビニ', 'セブン', 'ローソン', 'ファミマ', 'ミニストップ', '文房具', '事務用品']],
@@ -74,7 +86,7 @@ function extractReceiptData(text: string) {
 
   const suggestions = [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i)
 
-  return { date, amount, vendor, accountCategory, taxRate, suggestions }
+  return { date, amount, vendor, purpose, accountCategory, taxRate, suggestions }
 }
 
 export async function POST(req: NextRequest) {
@@ -138,20 +150,20 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    const { date, amount, vendor, accountCategory, taxRate, suggestions } = extractReceiptData(text)
+    const { date, amount, vendor, purpose, accountCategory, taxRate, suggestions } = extractReceiptData(text)
 
     results.push({
       id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       date,
       amount,
       vendor,
-      purpose: vendor,
+      purpose,
       accountCategory,
       accountCategorySuggestions: suggestions,
       taxRate,
       status: 'pending',
       sourceType: 'image',
-      reason: `OCR解析により自動抽出。支払先「${vendor}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
+      reason: `OCR解析により自動抽出。支払先「${vendor}」、用途「${purpose}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
       extractedAt: new Date().toISOString(),
     })
   }
