@@ -80,12 +80,25 @@ export default function SubsidyPage() {
     setChallenges(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id])
   }
 
-  function runMatching() {
+  async function runMatching() {
     setIsMatching(true)
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/subsidy/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ region, industry, employees, challenges }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'エラーが発生しました')
+      if (data.subsidies?.length > 0) {
+        setSubsidies(data.subsidies)
+        setHasMatched(true)
+      }
+    } catch (err) {
+      alert('マッチングエラー: ' + String(err))
+    } finally {
       setIsMatching(false)
-      setHasMatched(true)
-    }, 2000)
+    }
   }
 
   function updateStatus(id: string, status: SubsidyStatus) {
