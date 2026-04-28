@@ -54,7 +54,7 @@ export default function LawAlertsPage() {
     }
   }
 
-  useEffect(() => { fetchLatestAlerts() }, [])
+  useEffect(() => { /* 手動ボタンでのみ取得 */ }, [])
 
   const filtered = alerts.filter(a =>
     (statusFilter === 'all' || a.status === statusFilter) &&
