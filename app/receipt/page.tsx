@@ -69,8 +69,9 @@ export default function ReceiptPage() {
       if (data.receipts) {
         setReceipts(prev => [...data.receipts, ...prev])
       }
-    } catch {
-      // API失敗時はカウントのみ表示
+    } catch (err) {
+      console.error('Receipt analyze error:', err)
+      alert('エラーが発生しました: ' + String(err))
     } finally {
       setIsImageProcessing(false)
     }
