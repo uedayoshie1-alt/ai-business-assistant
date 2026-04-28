@@ -108,6 +108,16 @@ export async function POST(req: NextRequest) {
     })
 
     const visionData = await visionRes.json()
+
+    // APIエラーチェック
+    const apiError = visionData.responses?.[0]?.error
+    if (apiError) {
+      return NextResponse.json({ error: `Vision API error: ${apiError.message} (code: ${apiError.code})` }, { status: 500 })
+    }
+    if (visionData.error) {
+      return NextResponse.json({ error: `Vision API error: ${visionData.error.message}` }, { status: 500 })
+    }
+
     const text: string = visionData.responses?.[0]?.fullTextAnnotation?.text ?? ''
 
     if (!text) {
