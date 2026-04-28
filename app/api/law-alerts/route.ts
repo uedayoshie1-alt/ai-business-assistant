@@ -3,60 +3,31 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-async function fetchMHLWRSS(): Promise<string> {
-  const feeds = [
-    'https://www.mhlw.go.jp/rss/newpage_00.xml',
-    'https://www.mhlw.go.jp/rss/houdou_00.xml',
-  ]
-  const results = await Promise.allSettled(
-    feeds.map(url =>
-      fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml,application/xml,text/xml' },
-        signal: AbortSignal.timeout(8000),
-      }).then(r => r.text())
-    )
-  )
-  return results
-    .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-    .map(r => r.value)
-    .join('\n\n')
-}
+type RSSItem = { title: string; link: string; pubDate: string; description: string }
 
-async function fetchEGovLaws(): Promise<string> {
+async function fetchRSS(url: string): Promise<string> {
   try {
-    // 労働・社会保険分野の法令一覧を取得
-    const res = await fetch('https://laws.e-gov.go.jp/api/1/lawlists/2', {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/rss+xml,text/xml' },
       signal: AbortSignal.timeout(8000),
     })
-    const xml = await res.text()
-    // 直近更新された法令（先頭30件）のタイトルのみ抽出
-    const matches = xml.match(/<LawName>([^<]+)<\/LawName>/g) ?? []
-    return matches.slice(0, 30).map(m => m.replace(/<\/?LawName>/g, '')).join('\n')
-  } catch {
-    return ''
-  }
+    return res.ok ? await res.text() : ''
+  } catch { return '' }
 }
 
-type RSSItem = { title: string; desc: string; link: string; pubDate: string }
-
-function extractRSSItems(xml: string): { text: string; items: RSSItem[] } {
+function parseRSS(xml: string): RSSItem[] {
   const items: RSSItem[] = []
-  const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g)
-  let count = 0
-  for (const match of itemMatches) {
-    if (count >= 20) break
-    const raw = match[1]
-    const titleMatch = raw.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ?? raw.match(/<title>([^<]*)<\/title>/)
-    const title = titleMatch?.[1] ?? ''
-    const descMatch = raw.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ?? raw.match(/<description>([^<]*)<\/description>/)
-    const desc = descMatch?.[1] ?? ''
-    const link = raw.match(/<link>([^<]+)<\/link>/)?.[1]?.trim() ?? ''
-    const pubDate = raw.match(/<pubDate>([^<]+)<\/pubDate>/)?.[1]?.trim() ?? ''
-    if (title.trim()) items.push({ title: title.trim(), desc: desc.trim(), link, pubDate })
-    count++
+  const matches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g)
+  for (const m of matches) {
+    const raw = m[1]
+    const title = (raw.match(/<title><!\[CDATA\[([\s\S]*?)\]\]>/) ?? raw.match(/<title>([^<]+)/))?.[1]?.trim() ?? ''
+    const link = (raw.match(/<link>([^<]+)/) ?? raw.match(/<guid>([^<]+)/))?.[1]?.trim() ?? ''
+    const pubDate = raw.match(/<pubDate>([^<]+)/)?.[1]?.trim() ?? ''
+    const desc = (raw.match(/<description><!\[CDATA\[([\s\S]*?)\]\]>/) ?? raw.match(/<description>([^<]+)/))?.[1]?.trim() ?? ''
+    if (title) items.push({ title, link, pubDate, description: desc.slice(0, 200) })
+    if (items.length >= 30) break
   }
-  const text = items.map(i => `【${i.pubDate}】${i.title}\n${i.desc}\nURL: ${i.link}`).join('\n\n')
-  return { text, items }
+  return items
 }
 
 export async function GET() {
@@ -64,51 +35,58 @@ export async function GET() {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
   }
 
+  // 複数フィードを並行取得
+  const [rss1, rss2] = await Promise.all([
+    fetchRSS('https://www.mhlw.go.jp/rss/newpage_00.xml'),
+    fetchRSS('https://www.mhlw.go.jp/rss/houdou_00.xml'),
+  ])
+
+  const items = [...parseRSS(rss1), ...parseRSS(rss2)]
+    .filter((v, i, a) => a.findIndex(x => x.title === v.title) === i) // 重複除去
+
   const today = new Date().toISOString().split('T')[0]
 
-  // 並行してデータ取得
-  const [rssRaw, egovRaw] = await Promise.all([fetchMHLWRSS(), fetchEGovLaws()])
-  const { text: rssText } = extractRSSItems(rssRaw)
+  // RSS取得失敗時のフォールバック
+  const rssSection = items.length > 0
+    ? items.map((it, i) =>
+        `[${i + 1}] タイトル: ${it.title}\n    日付: ${it.pubDate}\n    URL: ${it.link}\n    概要: ${it.description}`
+      ).join('\n\n')
+    : `（RSS取得失敗）今日${today}現在で最新の労働・社会保険法令に関する改正情報を生成してください`
 
-  const sources = []
-  if (rssText) sources.push(`【厚生労働省 最新プレスリリース】\n${rssText}`)
-  if (egovRaw) sources.push(`【e-Gov 最近更新された法令（抜粋）】\n${egovRaw}`)
+  const prompt = `あなたは社会保険労務士向け法改正アラートシステムです。今日は${today}です。
 
-  const sourceSection = sources.length > 0
-    ? sources.join('\n\n---\n\n')
-    : '（外部データ取得に失敗しました。知識に基づいて回答してください）'
+以下は厚生労働省の最新プレスリリース一覧です：
 
-  const prompt = `今日は${today}です。社会保険労務士向けの法改正アラートシステムです。
-
-以下の厚生労働省プレスリリースとe-Gov法令データを参照し、社労士が顧問先に対応すべき重要な法改正・改正予定を5件選んでJSON配列で返してください。
-
-${sourceSection}
+${rssSection}
 
 ---
-以下のJSON配列のみを返してください（説明文・Markdown不要）：
+上記から社労士が対応すべき法改正・制度変更を5件抽出し、JSON配列のみを返してください。
+
+重要ルール：
+- publishDateとeffectiveDateは必ず実際の日付（YYYY-MM-DD）を使用
+- sourceUrlは上記[番号]に記載のURLをそのままコピー（URLがない場合のみhttps://www.mhlw.go.jp/）
+- RSSデータにない情報は追加しないこと
 
 [
   {
     "id": "la_1",
-    "title": "法改正タイトル",
+    "title": "法改正タイトル（RSSのタイトルをベースに）",
     "source": "厚生労働省",
-    "publishDate": "YYYY-MM-DD",
-    "effectiveDate": "YYYY-MM-DD",
+    "publishDate": "YYYY-MM-DD（RSS pubDateから変換）",
+    "effectiveDate": "YYYY-MM-DD（施行日。不明な場合は公開日+6ヶ月）",
     "importance": "high",
-    "category": "分野（例：育児・介護、最低賃金、社会保険）",
+    "category": "分野",
     "targetCompany": "対象企業",
-    "summary": "概要（100文字以内）",
+    "summary": "100文字以内の概要",
     "oldRule": "改正前ルール",
     "newRule": "改正後ルール",
-    "impact": "顧問先への影響",
+    "impact": "顧問先への具体的な影響",
     "requiredTasks": ["タスク1", "タスク2", "タスク3"],
-    "draftNotice": "顧問先向け案内文（200文字程度）",
+    "draftNotice": "顧問先向け案内文200文字",
     "status": "unconfirmed",
-    "sourceUrl": "上記データに含まれる実際のURLを必ず使用。なければ https://www.mhlw.go.jp/index.html"
+    "sourceUrl": "RSSのURLをそのまま使用"
   }
-]
-
-重要：sourceUrlは上記データに記載されている実際のURLをそのままコピーして使用してください。存在しないURLは生成しないでください。`
+]`
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
@@ -118,14 +96,11 @@ ${sourceSection}
 
   const text = message.content[0].type === 'text' ? message.content[0].text : ''
   const jsonMatch = text.match(/\[[\s\S]*\]/)
-  if (!jsonMatch) {
-    return NextResponse.json({ error: 'Failed to parse response' }, { status: 500 })
-  }
+  if (!jsonMatch) return NextResponse.json({ error: 'Parse failed' }, { status: 500 })
 
   const alerts = JSON.parse(jsonMatch[0])
-
   return NextResponse.json(
-    { alerts, generatedAt: new Date().toISOString(), sources: sources.length },
-    { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600' } }
+    { alerts, generatedAt: new Date().toISOString(), rssItemCount: items.length },
+    { headers: { 'Cache-Control': 'public, s-maxage=3600' } }
   )
 }
