@@ -37,22 +37,24 @@ async function fetchEGovLaws(): Promise<string> {
   }
 }
 
-function extractRSSItems(xml: string): string {
-  // RSSのtitle/description/linkを抽出してテキスト化
-  const items: string[] = []
+type RSSItem = { title: string; desc: string; link: string; pubDate: string }
+
+function extractRSSItems(xml: string): { text: string; items: RSSItem[] } {
+  const items: RSSItem[] = []
   const itemMatches = xml.matchAll(/<item>([\s\S]*?)<\/item>/g)
   let count = 0
   for (const match of itemMatches) {
     if (count >= 20) break
-    const item = match[1]
-    const title = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/)?.[1] ?? ''
-    const desc = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/)?.[1] ?? ''
-    const link = item.match(/<link>(.*?)<\/link>/)?.[1] ?? ''
-    const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? ''
-    if (title) items.push(`【${pubDate}】${title}\n${desc}\n${link}`)
+    const raw = match[1]
+    const title = raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>([^<]*)<\/title>/s)?.[1] ?? raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>([^<]*)<\/title>/s)?.[2] ?? ''
+    const desc = raw.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>([^<]*)<\/description>/s)?.[1] ?? ''
+    const link = raw.match(/<link>([^<]+)<\/link>/)?.[1]?.trim() ?? ''
+    const pubDate = raw.match(/<pubDate>([^<]+)<\/pubDate>/)?.[1]?.trim() ?? ''
+    if (title.trim()) items.push({ title: title.trim(), desc: desc.trim(), link, pubDate })
     count++
   }
-  return items.join('\n\n')
+  const text = items.map(i => `【${i.pubDate}】${i.title}\n${i.desc}\nURL: ${i.link}`).join('\n\n')
+  return { text, items }
 }
 
 export async function GET() {
@@ -64,7 +66,7 @@ export async function GET() {
 
   // 並行してデータ取得
   const [rssRaw, egovRaw] = await Promise.all([fetchMHLWRSS(), fetchEGovLaws()])
-  const rssText = extractRSSItems(rssRaw)
+  const { text: rssText } = extractRSSItems(rssRaw)
 
   const sources = []
   if (rssText) sources.push(`【厚生労働省 最新プレスリリース】\n${rssText}`)
@@ -100,9 +102,11 @@ ${sourceSection}
     "requiredTasks": ["タスク1", "タスク2", "タスク3"],
     "draftNotice": "顧問先向け案内文（200文字程度）",
     "status": "unconfirmed",
-    "sourceUrl": "https://www.mhlw.go.jp/"
+    "sourceUrl": "上記データに含まれる実際のURLを必ず使用。なければ https://www.mhlw.go.jp/index.html"
   }
-]`
+]
+
+重要：sourceUrlは上記データに記載されている実際のURLをそのままコピーして使用してください。存在しないURLは生成しないでください。`
 
   const message = await client.messages.create({
     model: 'claude-sonnet-4-6',
