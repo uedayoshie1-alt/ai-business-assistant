@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   ScanLine, Upload, Video, Image as ImageIcon, CheckCircle2, AlertTriangle,
@@ -23,7 +23,15 @@ function formatCurrency(n: number) {
 }
 
 export default function ReceiptPage() {
-  const [receipts, setReceipts] = useState<Receipt[]>(mockReceipts)
+  const [receipts, setReceipts] = useState<Receipt[]>(() => {
+    if (typeof window === 'undefined') return mockReceipts
+    try {
+      const saved = localStorage.getItem('receipts')
+      return saved ? JSON.parse(saved) : mockReceipts
+    } catch {
+      return mockReceipts
+    }
+  })
   const [filter, setFilter] = useState<FilterType>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -36,6 +44,10 @@ export default function ReceiptPage() {
   const [imageCount, setImageCount] = useState(0)
   const videoRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    try { localStorage.setItem('receipts', JSON.stringify(receipts)) } catch {}
+  }, [receipts])
 
   const stats = {
     total: receipts.length,
