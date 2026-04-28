@@ -28,6 +28,8 @@ export default function ReceiptPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editCategory, setEditCategory] = useState('')
+  const [editModalId, setEditModalId] = useState<string | null>(null)
+  const [editFields, setEditFields] = useState({ date: '', vendor: '', amount: '', purpose: '', accountCategory: '', taxRate: 10 })
   const [isVideoProcessing, setIsVideoProcessing] = useState(false)
   const [isImageProcessing, setIsImageProcessing] = useState(false)
   const [videoFileName, setVideoFileName] = useState<string | null>(null)
@@ -93,6 +95,39 @@ export default function ReceiptPage() {
   function saveCategory(id: string) {
     setReceipts(prev => prev.map(r => r.id === id ? { ...r, accountCategory: editCategory, status: 'confirmed' } : r))
     setEditingId(null)
+  }
+
+  function deleteReceipt(id: string) {
+    if (!confirm('この領収書を削除しますか？')) return
+    setReceipts(prev => prev.filter(r => r.id !== id))
+    if (selectedId === id) setSelectedId(null)
+  }
+
+  function openEditModal(receipt: Receipt) {
+    setEditModalId(receipt.id)
+    setEditFields({
+      date: receipt.date,
+      vendor: receipt.vendor,
+      amount: String(receipt.amount),
+      purpose: receipt.purpose,
+      accountCategory: receipt.accountCategory,
+      taxRate: receipt.taxRate,
+    })
+  }
+
+  function saveEditModal() {
+    if (!editModalId) return
+    setReceipts(prev => prev.map(r => r.id === editModalId ? {
+      ...r,
+      date: editFields.date,
+      vendor: editFields.vendor,
+      amount: parseInt(editFields.amount) || 0,
+      purpose: editFields.purpose,
+      accountCategory: editFields.accountCategory,
+      taxRate: editFields.taxRate,
+      status: 'confirmed',
+    } : r))
+    setEditModalId(null)
   }
 
   function exportCSV() {
@@ -373,24 +408,19 @@ export default function ReceiptPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <button
                             onClick={() => setSelectedId(receipt.id)}
                             className="text-[11px] text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                           >
                             <Eye size={12} />詳細
                           </button>
-                          {receipt.status !== 'confirmed' && (
-                            <button
-                              onClick={() => {
-                                setEditingId(receipt.id)
-                                setEditCategory(receipt.accountCategory)
-                              }}
-                              className="text-[11px] text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1"
-                            >
-                              <Edit3 size={12} />修正
-                            </button>
-                          )}
+                          <button
+                            onClick={() => openEditModal(receipt)}
+                            className="text-[11px] text-violet-600 hover:text-violet-800 font-medium flex items-center gap-1"
+                          >
+                            <Edit3 size={12} />修正
+                          </button>
                           {receipt.status === 'pending' && (
                             <button
                               onClick={() => confirmReceipt(receipt.id)}
@@ -399,6 +429,12 @@ export default function ReceiptPage() {
                               <CheckCircle2 size={12} />確定
                             </button>
                           )}
+                          <button
+                            onClick={() => deleteReceipt(receipt.id)}
+                            className="text-[11px] text-red-500 hover:text-red-700 font-medium flex items-center gap-1"
+                          >
+                            <X size={12} />削除
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -408,6 +444,81 @@ export default function ReceiptPage() {
             </table>
           </div>
         </div>
+
+        {/* 編集モーダル */}
+        {editModalId && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between"
+                style={{ background: 'linear-gradient(135deg, #F5F3FF 0%, #EFF6FF 100%)' }}>
+                <div className="flex items-center gap-2">
+                  <Edit3 size={16} className="text-violet-600" />
+                  <h3 className="text-sm font-bold text-slate-800">領収書を修正</h3>
+                </div>
+                <button onClick={() => setEditModalId(null)} className="text-slate-400 hover:text-slate-600">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-500 font-medium block mb-1">支払日</label>
+                    <input type="date" value={editFields.date}
+                      onChange={e => setEditFields(f => ({ ...f, date: e.target.value }))}
+                      className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400" />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 font-medium block mb-1">金額（円）</label>
+                    <input type="number" value={editFields.amount}
+                      onChange={e => setEditFields(f => ({ ...f, amount: e.target.value }))}
+                      className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 font-medium block mb-1">支払先</label>
+                  <input type="text" value={editFields.vendor}
+                    onChange={e => setEditFields(f => ({ ...f, vendor: e.target.value }))}
+                    className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-500 font-medium block mb-1">用途</label>
+                  <input type="text" value={editFields.purpose}
+                    onChange={e => setEditFields(f => ({ ...f, purpose: e.target.value }))}
+                    className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] text-slate-500 font-medium block mb-1">勘定科目</label>
+                    <select value={editFields.accountCategory}
+                      onChange={e => setEditFields(f => ({ ...f, accountCategory: e.target.value }))}
+                      className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400">
+                      {ACCOUNT_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-500 font-medium block mb-1">税率</label>
+                    <select value={editFields.taxRate}
+                      onChange={e => setEditFields(f => ({ ...f, taxRate: Number(e.target.value) }))}
+                      className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-violet-400">
+                      <option value={10}>10%</option>
+                      <option value={8}>8%（軽減税率）</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="px-6 pb-6 flex gap-3">
+                <button onClick={saveEditModal}
+                  className="flex-1 bg-violet-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-violet-700 transition-colors flex items-center justify-center gap-2">
+                  <CheckCircle2 size={16} />保存して確定
+                </button>
+                <button onClick={() => setEditModalId(null)}
+                  className="px-4 py-2.5 text-sm font-semibold text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                  キャンセル
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 詳細モーダル */}
         {selected && (
