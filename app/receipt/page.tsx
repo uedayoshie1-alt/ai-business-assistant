@@ -53,12 +53,27 @@ export default function ReceiptPage() {
     setTimeout(() => setIsVideoProcessing(false), 3000)
   }
 
-  function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
-    if (!files) return
+    if (!files || files.length === 0) return
     setImageCount(files.length)
     setIsImageProcessing(true)
-    setTimeout(() => setIsImageProcessing(false), 2000)
+
+    try {
+      const formData = new FormData()
+      for (const file of Array.from(files)) {
+        formData.append('images', file)
+      }
+      const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (data.receipts) {
+        setReceipts(prev => [...data.receipts, ...prev])
+      }
+    } catch {
+      // API失敗時はカウントのみ表示
+    } finally {
+      setIsImageProcessing(false)
+    }
   }
 
   function confirmReceipt(id: string) {
