@@ -46,8 +46,10 @@ function extractRSSItems(xml: string): { text: string; items: RSSItem[] } {
   for (const match of itemMatches) {
     if (count >= 20) break
     const raw = match[1]
-    const title = raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>([^<]*)<\/title>/s)?.[1] ?? raw.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>([^<]*)<\/title>/s)?.[2] ?? ''
-    const desc = raw.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>([^<]*)<\/description>/s)?.[1] ?? ''
+    const titleMatch = raw.match(/<title><!\[CDATA\[([\s\S]*?)\]\]><\/title>/) ?? raw.match(/<title>([^<]*)<\/title>/)
+    const title = titleMatch?.[1] ?? ''
+    const descMatch = raw.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/) ?? raw.match(/<description>([^<]*)<\/description>/)
+    const desc = descMatch?.[1] ?? ''
     const link = raw.match(/<link>([^<]+)<\/link>/)?.[1]?.trim() ?? ''
     const pubDate = raw.match(/<pubDate>([^<]+)<\/pubDate>/)?.[1]?.trim() ?? ''
     if (title.trim()) items.push({ title: title.trim(), desc: desc.trim(), link, pubDate })
