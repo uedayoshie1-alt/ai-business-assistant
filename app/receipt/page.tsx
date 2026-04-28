@@ -47,12 +47,66 @@ export default function ReceiptPage() {
   const filtered = receipts.filter(r => filter === 'all' || r.status === filter)
   const selected = selectedId ? receipts.find(r => r.id === selectedId) : null
 
-  function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function extractFrames(file: File, intervalSec = 2): Promise<Blob[]> {
+    return new Promise((resolve) => {
+      const video = document.createElement('video')
+      video.src = URL.createObjectURL(file)
+      video.muted = true
+      const frames: Blob[] = []
+
+      video.onloadedmetadata = () => {
+        const times: number[] = []
+        for (let t = 0; t < video.duration; t += intervalSec) times.push(t)
+        if (times.length === 0) times.push(0)
+
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')!
+        let i = 0
+
+        const capture = () => { video.currentTime = times[i] }
+        video.onseeked = () => {
+          canvas.width = video.videoWidth
+          canvas.height = video.videoHeight
+          ctx.drawImage(video, 0, 0)
+          canvas.toBlob(blob => {
+            if (blob) frames.push(blob)
+            i++
+            if (i < times.length) capture()
+            else { URL.revokeObjectURL(video.src); resolve(frames) }
+          }, 'image/jpeg', 0.85)
+        }
+        capture()
+      }
+      video.onerror = () => resolve([])
+    })
+  }
+
+  async function handleVideoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setVideoFileName(file.name)
     setIsVideoProcessing(true)
-    setTimeout(() => setIsVideoProcessing(false), 3000)
+
+    try {
+      const frames = await extractFrames(file, 2)
+      if (frames.length === 0) throw new Error('フレームを抽出できませんでした')
+
+      const formData = new FormData()
+      frames.forEach((blob, i) => formData.append('images', blob, `frame_${i}.jpg`))
+
+      const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `サーバーエラー (${res.status})`)
+
+      if (data.receipts && data.receipts.length > 0) {
+        const withVideo = data.receipts.map((r: Receipt) => ({ ...r, sourceType: 'video' as const }))
+        setReceipts(prev => [...withVideo, ...prev])
+      }
+    } catch (err) {
+      alert('動画処理エラー: ' + String(err))
+    } finally {
+      setIsVideoProcessing(false)
+    }
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -205,22 +259,8 @@ export default function ReceiptPage() {
               {isVideoProcessing ? (
                 <div className="border-2 border-blue-200 rounded-xl p-6 text-center bg-blue-50">
                   <Loader2 size={28} className="text-blue-500 animate-spin mx-auto mb-3" />
-                  <p className="text-sm font-semibold text-blue-700 mb-1">AI解析中...</p>
-                  <div className="space-y-2 text-left mt-4">
-                    {[
-                      { label: 'フレーム抽出', done: true },
-                      { label: '領収書検出', done: true },
-                      { label: 'OCR文字認識', done: false },
-                      { label: '勘定科目提案', done: false },
-                    ].map((step, i) => (
-                      <div key={i} className="flex items-center gap-2 text-xs">
-                        {step.done
-                          ? <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-                          : <Loader2 size={14} className="text-blue-400 animate-spin shrink-0" />}
-                        <span className={step.done ? 'text-slate-600' : 'text-blue-600'}>{step.label}</span>
-                      </div>
-                    ))}
-                  </div>
+                  <p className="text-sm font-semibold text-blue-700 mb-1">動画を解析中...</p>
+                  <p className="text-xs text-blue-500">フレーム抽出 → OCR → 勘定科目提案</p>
                 </div>
               ) : videoFileName ? (
                 <div className="border-2 border-emerald-200 rounded-xl p-4 bg-emerald-50 flex items-center gap-3">
