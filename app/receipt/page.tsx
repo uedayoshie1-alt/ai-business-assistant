@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { fetchReceipts, upsertReceipt, upsertReceipts, deleteReceiptById } from '@/lib/db'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   ScanLine, Upload, Video, Image as ImageIcon, CheckCircle2, AlertTriangle,
@@ -23,15 +24,8 @@ function formatCurrency(n: number) {
 }
 
 export default function ReceiptPage() {
-  const [receipts, setReceipts] = useState<Receipt[]>(() => {
-    if (typeof window === 'undefined') return mockReceipts
-    try {
-      const saved = localStorage.getItem('receipts')
-      return saved ? JSON.parse(saved) : mockReceipts
-    } catch {
-      return mockReceipts
-    }
-  })
+  const [receipts, setReceipts] = useState<Receipt[]>([])
+  const [dbLoading, setDbLoading] = useState(true)
   const [filter, setFilter] = useState<FilterType>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -45,9 +39,15 @@ export default function ReceiptPage() {
   const videoRef = useRef<HTMLInputElement>(null)
   const imageRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    try { localStorage.setItem('receipts', JSON.stringify(receipts)) } catch {}
-  }, [receipts])
+  const loadReceipts = useCallback(async () => {
+    try {
+      const data = await fetchReceipts()
+      setReceipts(data)
+    } catch { setReceipts(mockReceipts) }
+    finally { setDbLoading(false) }
+  }, [])
+
+  useEffect(() => { loadReceipts() }, [loadReceipts])
 
   const stats = {
     total: receipts.length,
@@ -113,6 +113,7 @@ export default function ReceiptPage() {
       if (data.receipts && data.receipts.length > 0) {
         const withVideo = data.receipts.map((r: Receipt) => ({ ...r, sourceType: 'video' as const }))
         setReceipts(prev => [...withVideo, ...prev])
+        await upsertReceipts(withVideo)
       }
     } catch (err) {
       alert('動画処理エラー: ' + String(err))
@@ -139,6 +140,7 @@ export default function ReceiptPage() {
       }
       if (data.receipts && data.receipts.length > 0) {
         setReceipts(prev => [...data.receipts, ...prev])
+        await upsertReceipts(data.receipts)
       }
     } catch (err) {
       console.error('Receipt analyze error:', err)
@@ -148,25 +150,32 @@ export default function ReceiptPage() {
     }
   }
 
-  function confirmReceipt(id: string) {
-    setReceipts(prev => prev.map(r => r.id === id ? { ...r, status: 'confirmed' } : r))
+  async function confirmReceipt(id: string) {
+    const updated = receipts.map(r => r.id === id ? { ...r, status: 'confirmed' as const } : r)
+    setReceipts(updated)
     setSelectedId(null)
+    await upsertReceipt(updated.find(r => r.id === id)!)
   }
 
-  function rejectReceipt(id: string) {
-    setReceipts(prev => prev.map(r => r.id === id ? { ...r, status: 'rejected' } : r))
+  async function rejectReceipt(id: string) {
+    const updated = receipts.map(r => r.id === id ? { ...r, status: 'rejected' as const } : r)
+    setReceipts(updated)
     setSelectedId(null)
+    await upsertReceipt(updated.find(r => r.id === id)!)
   }
 
-  function saveCategory(id: string) {
-    setReceipts(prev => prev.map(r => r.id === id ? { ...r, accountCategory: editCategory, status: 'confirmed' } : r))
+  async function saveCategory(id: string) {
+    const updated = receipts.map(r => r.id === id ? { ...r, accountCategory: editCategory, status: 'confirmed' as const } : r)
+    setReceipts(updated)
     setEditingId(null)
+    await upsertReceipt(updated.find(r => r.id === id)!)
   }
 
-  function deleteReceipt(id: string) {
+  async function deleteReceipt(id: string) {
     if (!confirm('この領収書を削除しますか？')) return
     setReceipts(prev => prev.filter(r => r.id !== id))
     if (selectedId === id) setSelectedId(null)
+    await deleteReceiptById(id)
   }
 
   function openEditModal(receipt: Receipt) {
@@ -181,9 +190,9 @@ export default function ReceiptPage() {
     })
   }
 
-  function saveEditModal() {
+  async function saveEditModal() {
     if (!editModalId) return
-    setReceipts(prev => prev.map(r => r.id === editModalId ? {
+    const updated = receipts.map(r => r.id === editModalId ? {
       ...r,
       date: editFields.date,
       vendor: editFields.vendor,
@@ -191,9 +200,11 @@ export default function ReceiptPage() {
       purpose: editFields.purpose,
       accountCategory: editFields.accountCategory,
       taxRate: editFields.taxRate,
-      status: 'confirmed',
-    } : r))
+      status: 'confirmed' as const,
+    } : r)
+    setReceipts(updated)
     setEditModalId(null)
+    await upsertReceipt(updated.find(r => r.id === editModalId)!)
   }
 
   function exportCSV() {
