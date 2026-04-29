@@ -72,6 +72,63 @@ export async function deleteReceiptById(id: string): Promise<void> {
 }
 
 // ============================================================
+// 顧問先
+// ============================================================
+
+import type { Client } from './mock-data'
+
+export async function fetchClients(): Promise<Client[]> {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map(c => ({
+    id: c.id,
+    name: c.name,
+    industry: c.industry,
+    region: c.region,
+    employees: c.employees,
+    size: c.size ?? '中小企業',
+    contractDate: c.contract_date ?? '',
+    status: c.status as 'active' | 'inactive',
+    pendingAlerts: c.pending_alerts ?? 0,
+    pendingSubsidies: c.pending_subsidies ?? 0,
+    monthlyFee: c.monthly_fee ?? 0,
+    contactPerson: c.contact_name ?? '',
+    phone: c.contact_phone ?? '',
+    email: c.contact_email ?? '',
+    tags: c.tags ?? [],
+  }))
+}
+
+export async function upsertClient(client: Client): Promise<void> {
+  const { error } = await supabase.from('clients').upsert({
+    id: client.id,
+    name: client.name,
+    industry: client.industry,
+    region: client.region,
+    employees: client.employees,
+    size: client.size,
+    contract_date: client.contractDate,
+    status: client.status,
+    pending_alerts: client.pendingAlerts,
+    pending_subsidies: client.pendingSubsidies,
+    monthly_fee: client.monthlyFee,
+    contact_name: client.contactPerson,
+    contact_phone: client.phone,
+    contact_email: client.email,
+    tags: client.tags,
+  })
+  if (error) throw error
+}
+
+export async function deleteClientById(id: string): Promise<void> {
+  const { error } = await supabase.from('clients').delete().eq('id', id)
+  if (error) throw error
+}
+
+// ============================================================
 // 法改正ステータス
 // ============================================================
 

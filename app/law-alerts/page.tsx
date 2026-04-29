@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { fetchLawAlertStatuses, upsertLawAlertStatus } from '@/lib/db'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   Bell, AlertTriangle, CheckCircle2, Clock, ChevronRight, X,
@@ -77,14 +78,32 @@ export default function LawAlertsPage() {
     notified: alerts.filter(a => a.status === 'notified').length,
   }
 
-  function updateStatus(id: string, status: LawAlertStatus) {
+  async function updateStatus(id: string, status: LawAlertStatus) {
+    const alert = alerts.find(a => a.id === id)
     setAlerts(prev => prev.map(a => a.id === id ? {
       ...a, status,
-      confirmedBy: '田中 太郎',
+      confirmedBy: 'スタッフ',
       confirmedAt: new Date().toISOString(),
     } : a))
     setSelectedId(null)
+    if (alert) await upsertLawAlertStatus(id, alert.title, status, 'スタッフ')
   }
+
+  const loadStatuses = useCallback(async () => {
+    const statuses = await fetchLawAlertStatuses()
+    if (Object.keys(statuses).length > 0) {
+      setAlerts(prev => prev.map(a => statuses[a.id] ? {
+        ...a,
+        status: statuses[a.id].status as LawAlertStatus,
+        confirmedBy: statuses[a.id].confirmedBy,
+        confirmedAt: statuses[a.id].confirmedAt,
+      } : a))
+    }
+  }, [])
+
+  useEffect(() => {
+    if (alerts.length > 0) loadStatuses()
+  }, [alerts.length, loadStatuses])
 
   return (
     <AppLayout>

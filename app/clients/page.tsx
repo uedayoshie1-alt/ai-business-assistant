@@ -1,17 +1,62 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   Building2, Search, Bell, DollarSign, ChevronRight, X,
-  Phone, Mail, MapPin, Users, Calendar, Tag, Plus, Eye,
+  Phone, Mail, MapPin, Users, Calendar, Tag, Plus, Eye, Loader2,
 } from 'lucide-react'
 import { mockClients, type Client } from '@/lib/mock-data'
+import { fetchClients, upsertClient, deleteClientById } from '@/lib/db'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 
 export default function ClientsPage() {
-  const [clients] = useState<Client[]>(mockClients)
+  const [clients, setClients] = useState<Client[]>([])
+  const [dbLoading, setDbLoading] = useState(true)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newClient, setNewClient] = useState({ name: '', industry: 'IT・情報通信', region: '東京都', employees: '', contactPerson: '', phone: '', email: '', monthlyFee: '' })
+
+  const loadClients = useCallback(async () => {
+    try {
+      const data = await fetchClients()
+      setClients(data.length > 0 ? data : mockClients)
+    } catch { setClients(mockClients) }
+    finally { setDbLoading(false) }
+  }, [])
+
+  useEffect(() => { loadClients() }, [loadClients])
+
+  async function addClient() {
+    if (!newClient.name.trim()) return
+    const client: Client = {
+      id: `c_${Date.now()}`,
+      name: newClient.name,
+      industry: newClient.industry,
+      region: newClient.region,
+      employees: parseInt(newClient.employees) || 0,
+      size: '中小企業',
+      contractDate: new Date().toISOString().split('T')[0],
+      status: 'active',
+      pendingAlerts: 0,
+      pendingSubsidies: 0,
+      monthlyFee: parseInt(newClient.monthlyFee) || 0,
+      contactPerson: newClient.contactPerson,
+      phone: newClient.phone,
+      email: newClient.email,
+      tags: [],
+    }
+    setClients(prev => [client, ...prev])
+    await upsertClient(client)
+    setShowAddModal(false)
+    setNewClient({ name: '', industry: 'IT・情報通信', region: '東京都', employees: '', contactPerson: '', phone: '', email: '', monthlyFee: '' })
+  }
+
+  async function removeClient(id: string) {
+    if (!confirm('この顧問先を削除しますか？')) return
+    setClients(prev => prev.filter(c => c.id !== id))
+    await deleteClientById(id)
+  }
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -43,7 +88,7 @@ export default function ClientsPage() {
             </div>
             <p className="text-sm text-slate-500 ml-10.5">顧問先の情報・アラート・助成金候補を一元管理します</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl shadow-sm transition-colors"
+          <button onClick={() => setShowAddModal(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white rounded-xl shadow-sm transition-colors"
             style={{ background: 'linear-gradient(135deg, #7C3AED, #6D28D9)' }}>
             <Plus size={15} />顧問先を追加
           </button>
@@ -234,6 +279,69 @@ export default function ClientsPage() {
         )}
 
       </div>
+
+      {/* 顧問先追加モーダル */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800">顧問先を追加</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="p-6 space-y-3">
+              {[
+                { label: '会社名*', key: 'name', placeholder: '株式会社〇〇' },
+                { label: '担当者名', key: 'contactPerson', placeholder: '山田 太郎' },
+                { label: '電話番号', key: 'phone', placeholder: '03-0000-0000' },
+                { label: 'メール', key: 'email', placeholder: 'contact@example.com' },
+                { label: '従業員数', key: 'employees', placeholder: '50' },
+                { label: '月次顧問料（円）', key: 'monthlyFee', placeholder: '30000' },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key}>
+                  <label className="text-[11px] font-semibold text-slate-500 block mb-1">{label}</label>
+                  <input value={newClient[key as keyof typeof newClient]}
+                    onChange={e => setNewClient(prev => ({ ...prev, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-400" />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 block mb-1">業種</label>
+                  <select value={newClient.industry} onChange={e => setNewClient(prev => ({ ...prev, industry: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-400">
+                    {['IT・情報通信','製造業','卸売業','飲食業','建設業','医療・福祉','小売業','教育','その他'].map(i => <option key={i} value={i}>{i}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 block mb-1">地域</label>
+                  <select value={newClient.region} onChange={e => setNewClient(prev => ({ ...prev, region: e.target.value }))}
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:border-violet-400">
+                    {['東京都','神奈川県','埼玉県','千葉県','大阪府','愛知県','北海道','その他'].map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={addClient}
+                className="flex-1 bg-violet-600 text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-violet-700 transition-colors">
+                追加する
+              </button>
+              <button onClick={() => setShowAddModal(false)}
+                className="px-4 py-2.5 text-sm text-slate-500 border border-slate-200 rounded-xl hover:bg-slate-50">
+                キャンセル
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ローディング */}
+      {dbLoading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-white/50 z-40">
+          <Loader2 size={32} className="text-violet-500 animate-spin" />
+        </div>
+      )}
     </AppLayout>
   )
 }
