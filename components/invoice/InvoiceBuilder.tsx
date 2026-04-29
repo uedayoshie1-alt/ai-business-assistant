@@ -165,11 +165,11 @@ export function InvoiceBuilder() {
   const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i))
   const addItem = () => setItems((prev) => [...prev, emptyItem()])
 
-  // 税率別集計（amountではなく数量×単価で計算）
-  const items10 = items.filter((r) => r.taxRate === 10)
-  const items8 = items.filter((r) => r.taxRate === 8)
-  const subtotal10 = items10.reduce((s, r) => s + r.quantity * r.unitPrice, 0)
-  const subtotal8 = items8.reduce((s, r) => s + r.quantity * r.unitPrice, 0)
+  // 税率別集計（型変換して確実に数値比較）
+  const items10 = items.filter((r) => Number(r.taxRate) === 10)
+  const items8 = items.filter((r) => Number(r.taxRate) === 8)
+  const subtotal10 = items10.reduce((s, r) => s + Number(r.quantity) * Number(r.unitPrice), 0)
+  const subtotal8 = items8.reduce((s, r) => s + Number(r.quantity) * Number(r.unitPrice), 0)
   const tax10 = Math.floor(subtotal10 * 0.1)
   const tax8 = Math.floor(subtotal8 * 0.08)
   const total = subtotal10 + subtotal8 + tax10 + tax8
