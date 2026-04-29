@@ -52,8 +52,11 @@ export function InvoiceBuilder() {
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch('/api/invoice/parse-pdf', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`サーバーエラー(${res.status}): ${text.slice(0, 100)}`)
+      }
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'PDF解析に失敗しました')
       if (data.items?.length > 0) setItems(data.items)
       setInfo(prev => ({
         ...prev,
