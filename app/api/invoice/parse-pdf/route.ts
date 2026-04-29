@@ -43,16 +43,21 @@ export async function POST(req: NextRequest) {
     },
   ]
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
-    messages: [{ role: 'user', content }],
-  })
+  try {
+    const message = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 2000,
+      messages: [{ role: 'user', content }],
+    })
 
-  const text = message.content[0].type === 'text' ? message.content[0].text : ''
-  const jsonMatch = text.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) return NextResponse.json({ error: 'Parse failed' }, { status: 500 })
+    const text = message.content[0].type === 'text' ? message.content[0].text : ''
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return NextResponse.json({ error: 'JSONの抽出に失敗しました', raw: text.slice(0, 200) }, { status: 500 })
 
-  const data = JSON.parse(jsonMatch[0])
-  return NextResponse.json(data)
+    const data = JSON.parse(jsonMatch[0])
+    return NextResponse.json(data)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: `Claude APIエラー: ${msg}` }, { status: 500 })
+  }
 }
