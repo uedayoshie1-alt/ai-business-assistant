@@ -17,29 +17,28 @@ export async function POST(req: NextRequest) {
     const bytes = await file.arrayBuffer()
     const base64 = Buffer.from(bytes).toString('base64')
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const content: any[] = [
+      {
+        type: 'document',
+        source: { type: 'base64', media_type: 'application/pdf', data: base64 },
+      },
+      {
+        type: 'text',
+        text: 'このPDFの内容をすべてそのままテキストとして書き出してください。要約せず、記載されている内容をすべて抽出してください。',
+      },
+    ]
+
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4000,
-      messages: [{
-        role: 'user',
-        content: [
-          {
-            type: 'document',
-            source: { type: 'base64', media_type: 'application/pdf', data: base64 },
-          } as Parameters<typeof client.messages.create>[0]['messages'][0]['content'][0],
-          {
-            type: 'text',
-            text: 'このPDFの内容をすべてそのままテキストとして書き出してください。要約せず、記載されている内容をすべて抽出してください。',
-          },
-        ],
-      }],
+      messages: [{ role: 'user', content }],
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
     return NextResponse.json({ text: text.slice(0, 15000), type: 'pdf' })
   }
 
-  // テキスト・CSV系
   const text = await file.text()
   return NextResponse.json({ text: text.slice(0, 15000), type: 'text' })
 }
