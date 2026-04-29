@@ -15,6 +15,7 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<{ 
         requests: [{
           inputConfig: { content: base64, mimeType: 'application/pdf' },
           features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+          imageContext: { languageHints: ['ja', 'en'] },
           pages: [1, 2, 3],
         }],
       }),
