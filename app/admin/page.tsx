@@ -185,6 +185,25 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* 機能説明 */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+          <h2 className="text-sm font-bold text-slate-700">管理者でできること</h2>
+          <div className="space-y-2 text-xs text-slate-600">
+            <div className="flex items-start gap-2">
+              <UserPlus size={13} className="text-blue-500 mt-0.5 shrink-0" />
+              <span><strong>スタッフ招待</strong>：メールアドレスを入力して招待メールを送信。スタッフは受け取ったメールからパスワードを設定してログインできます</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Shield size={13} className="text-amber-500 mt-0.5 shrink-0" />
+              <span><strong>権限変更</strong>：一覧の「スタッフ/管理者」ドロップダウンで権限を変更できます</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Trash2 size={13} className="text-red-400 mt-0.5 shrink-0" />
+              <span><strong>ユーザー削除</strong>：退職したスタッフなどを削除できます</span>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2">
           <Shield size={14} className="text-amber-600 mt-0.5 shrink-0" />
           <p className="text-xs text-amber-700">このページは管理者のみ表示されます。スタッフにはサイドバーに表示されません。</p>

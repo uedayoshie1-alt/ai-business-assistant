@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   const { email } = await req.json()
   const { error } = await adminClient.auth.admin.inviteUserByEmail(email, {
     data: { role: 'staff' },
-    redirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('.supabase.co', '') ?? ''}/dashboard`,
+    redirectTo: 'https://ai-business-assistant-one.vercel.app/dashboard',
   })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
