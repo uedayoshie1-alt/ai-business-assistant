@@ -71,13 +71,10 @@ export default function DashboardPage() {
     }).catch(() => {})
   }, [])
 
-  const reviewingAlerts = 0
   const candidateSubsidies = mockSubsidies.filter(r => r.status === 'candidate').length
   const totalClients = mockClients.length
   const totalSubsidyAmount = '¥2,180万円'
   const timeSaved = '38.5時間'
-
-  const recentAlerts: never[] = []
   const topSubsidies = mockSubsidies.filter(s => s.status === 'candidate').sort((a, b) => b.score - a.score).slice(0, 3)
 
   const today = new Date()
@@ -148,7 +145,7 @@ export default function DashboardPage() {
           <StatCard
             label="新着法改正アラート"
             value={`${newAlerts}件`}
-            sub={`確認中 ${reviewingAlerts}件`}
+            sub="法改正アラートを確認"
             icon={Bell}
             color={newAlerts > 0 ? 'bg-red-500' : 'bg-emerald-500'}
             href="/law-alerts"
@@ -274,7 +271,7 @@ export default function DashboardPage() {
               ) : (
                 <></>
               )}
-              {recentAlerts.length === 0 && (
+              {newAlerts === 0 && (
                 <div className="px-5 py-6 text-center">
                   <CheckCircle2 size={24} className="text-emerald-400 mx-auto mb-2" />
                   <p className="text-sm text-slate-400">未確認のアラートはありません</p>
