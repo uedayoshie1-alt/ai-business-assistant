@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Sparkles, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import Image from 'next/image'
 
 type Mode = 'login' | 'signup'
 
@@ -45,15 +46,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex" style={{ background: 'linear-gradient(135deg, #0D1B3E 0%, #1a3a6e 50%, #0F2347 100%)' }}>
       {/* 左パネル */}
       <div className="hidden lg:flex flex-col justify-center px-16 w-1/2 text-white">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
-            style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>
-            <Sparkles size={22} className="text-white" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold tracking-wide">TASUKU AI</h1>
-            <p className="text-blue-300 text-sm">社労士 AI アシスタント</p>
-          </div>
+        <div className="mb-10">
+          <Image src="/logo.png" alt="TASUKU AI" width={320} height={180} className="object-contain" priority />
         </div>
         <h2 className="text-4xl font-bold leading-tight mb-4">
           社労士業務を<br />AIで効率化
@@ -84,15 +78,8 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
           {/* モバイル用ロゴ */}
-          <div className="flex items-center gap-3 mb-8 lg:hidden">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>
-              <Sparkles size={18} className="text-white" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">TASUKU AI</h1>
-              <p className="text-blue-300 text-xs">社労士 AI アシスタント</p>
-            </div>
+          <div className="flex justify-center mb-6 lg:hidden">
+            <Image src="/logo.png" alt="TASUKU AI" width={200} height={110} className="object-contain" priority />
           </div>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
