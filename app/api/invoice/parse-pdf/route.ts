@@ -8,7 +8,6 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<st
   if (!apiKey) throw new Error('Vision API key not configured')
 
   if (isPdf) {
-    // PDFはfiles:annotateエンドポイントを使用
     const res = await fetch(`https://vision.googleapis.com/v1/files:annotate?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -21,20 +20,12 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<st
       }),
     })
     const data = await res.json()
-    const responses = data.responses ?? []
-    return responses.map((r: Record<string, unknown>) => {
-      const pages = (r.fullTextAnnotation as Record<string, unknown> | undefined)?.pages ?? []
-      return (pages as Array<Record<string, unknown>>).map((p: Record<string, unknown>) => {
-        const text = (p as Record<string, unknown>)
-        return (text.blocks as Array<Record<string, unknown>> ?? []).flatMap((b: Record<string, unknown>) =>
-          (b.paragraphs as Array<Record<string, unknown>> ?? []).flatMap((para: Record<string, unknown>) =>
-            (para.words as Array<Record<string, unknown>> ?? []).map((w: Record<string, unknown>) =>
-              (w.symbols as Array<Record<string, unknown>> ?? []).map((s: Record<string, unknown>) => s.text).join('')
-            ).join(' ')
-          )
-        ).join('\n')
-      }).join('\n')
-    }).join('\n')
+    // files:annotate のレスポンス構造: data.responses[0].responses[].fullTextAnnotation.text
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const innerResponses: any[] = data.responses?.[0]?.responses ?? []
+    return innerResponses
+      .map((r: Record<string, unknown>) => (r.fullTextAnnotation as Record<string, unknown>)?.text ?? '')
+      .join('\n')
   } else {
     // 画像はimages:annotateエンドポイント
     const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
