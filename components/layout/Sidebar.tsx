@@ -25,7 +25,10 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+type NavItem = { href: string; label: string; icon: React.ElementType; badge?: string | null; badgeColor?: string }
+type NavSection = { section: string; items: NavItem[] }
+
+const navItems: NavSection[] = [
   {
     section: 'メイン',
     items: [
@@ -56,13 +59,13 @@ const navItems = [
   {
     section: '管理',
     items: [
-      { href: '/history', label: '履歴', icon: History },
-      { href: '/settings', label: '設定', icon: Settings },
+      { href: '/history', label: '履歴', icon: History, badge: null },
+      { href: '/settings', label: '設定', icon: Settings, badge: null },
     ],
   },
 ]
 
-const adminNavItems = [
+const adminNavItems: NavSection[] = [
   {
     section: '管理者',
     items: [
@@ -129,7 +132,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 const badgeCount = rawBadge === 'dynamic'
                   ? (unconfirmedCount > 0 ? String(unconfirmedCount) : null)
                   : rawBadge
-                const badgeColor = 'badgeColor' in item ? item.badgeColor : 'bg-blue-500'
+                const badgeColor = ('badgeColor' in item ? item.badgeColor : 'bg-blue-500') as string
 
                 return (
                   <li key={item.href}>
