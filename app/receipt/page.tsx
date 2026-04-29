@@ -59,37 +59,49 @@ export default function ReceiptPage() {
   const filtered = receipts.filter(r => filter === 'all' || r.status === filter)
   const selected = selectedId ? receipts.find(r => r.id === selectedId) : null
 
-  async function extractFrames(file: File, intervalSec = 2): Promise<Blob[]> {
+  async function extractFrames(file: File): Promise<Blob[]> {
     return new Promise((resolve) => {
       const video = document.createElement('video')
-      video.src = URL.createObjectURL(file)
+      const url = URL.createObjectURL(file)
+      video.src = url
       video.muted = true
-      const frames: Blob[] = []
 
       video.onloadedmetadata = () => {
+        const duration = video.duration
+        // 最大8フレーム、均等間隔で抽出
+        const MAX_FRAMES = 8
+        const interval = Math.max(duration / MAX_FRAMES, 0.5)
         const times: number[] = []
-        for (let t = 0; t < video.duration; t += intervalSec) times.push(t)
+        for (let t = 0.5; t < duration; t += interval) {
+          times.push(t)
+          if (times.length >= MAX_FRAMES) break
+        }
         if (times.length === 0) times.push(0)
 
         const canvas = document.createElement('canvas')
         const ctx = canvas.getContext('2d')!
+        const frames: Blob[] = []
         let i = 0
 
         const capture = () => { video.currentTime = times[i] }
         video.onseeked = () => {
-          canvas.width = video.videoWidth
-          canvas.height = video.videoHeight
-          ctx.drawImage(video, 0, 0)
+          // 解像度を1280px以内に制限（OCR精度を保ちつつサイズ削減）
+          const maxW = 1280
+          const scale = Math.min(1, maxW / video.videoWidth)
+          canvas.width = Math.floor(video.videoWidth * scale)
+          canvas.height = Math.floor(video.videoHeight * scale)
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
           canvas.toBlob(blob => {
             if (blob) frames.push(blob)
             i++
             if (i < times.length) capture()
-            else { URL.revokeObjectURL(video.src); resolve(frames) }
-          }, 'image/jpeg', 0.85)
+            else { URL.revokeObjectURL(url); resolve(frames) }
+          }, 'image/jpeg', 0.9)
         }
+        video.onerror = () => { URL.revokeObjectURL(url); resolve(frames) }
         capture()
       }
-      video.onerror = () => resolve([])
+      video.onerror = () => { URL.revokeObjectURL(url); resolve([]) }
     })
   }
 
@@ -100,20 +112,38 @@ export default function ReceiptPage() {
     setIsVideoProcessing(true)
 
     try {
-      const frames = await extractFrames(file, 2)
+      const frames = await extractFrames(file)
       if (frames.length === 0) throw new Error('フレームを抽出できませんでした')
 
-      const formData = new FormData()
-      frames.forEach((blob, i) => formData.append('images', blob, `frame_${i}.jpg`))
+      // 3フレームずつバッチ処理（タイムアウト回避）
+      const allReceipts: Receipt[] = []
+      const batchSize = 3
+      for (let i = 0; i < frames.length; i += batchSize) {
+        const batch = frames.slice(i, i + batchSize)
+        const formData = new FormData()
+        batch.forEach((blob, j) => formData.append('images', blob, `frame_${i + j}.jpg`))
 
-      const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || `サーバーエラー (${res.status})`)
+        const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
+        if (!res.ok) continue
+        const data = await res.json()
+        if (data.receipts) allReceipts.push(...data.receipts)
+      }
 
-      if (data.receipts && data.receipts.length > 0) {
-        const withVideo = data.receipts.map((r: Receipt) => ({ ...r, sourceType: 'video' as const }))
+      // 同じ金額・支払先の重複を除去
+      const seen = new Set<string>()
+      const unique = allReceipts.filter(r => {
+        const key = `${r.vendor}_${r.amount}`
+        if (seen.has(key)) return false
+        seen.add(key)
+        return true
+      })
+
+      if (unique.length > 0) {
+        const withVideo = unique.map(r => ({ ...r, sourceType: 'video' as const }))
         setReceipts(prev => [...withVideo, ...prev])
         await upsertReceipts(withVideo)
+      } else {
+        alert('領収書を検出できませんでした。領収書が画面内に明確に映るよう撮影してください。')
       }
     } catch (err) {
       alert('動画処理エラー: ' + String(err))
