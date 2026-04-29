@@ -3,6 +3,55 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+async function extractTextWithVision(base64: string, isPdf: boolean): Promise<string> {
+  const apiKey = process.env.GOOGLE_VISION_API_KEY
+  if (!apiKey) throw new Error('Vision API key not configured')
+
+  if (isPdf) {
+    // PDFはfiles:annotateエンドポイントを使用
+    const res = await fetch(`https://vision.googleapis.com/v1/files:annotate?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          inputConfig: { content: base64, mimeType: 'application/pdf' },
+          features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+          pages: [1, 2, 3],
+        }],
+      }),
+    })
+    const data = await res.json()
+    const responses = data.responses ?? []
+    return responses.map((r: Record<string, unknown>) => {
+      const pages = (r.fullTextAnnotation as Record<string, unknown> | undefined)?.pages ?? []
+      return (pages as Array<Record<string, unknown>>).map((p: Record<string, unknown>) => {
+        const text = (p as Record<string, unknown>)
+        return (text.blocks as Array<Record<string, unknown>> ?? []).flatMap((b: Record<string, unknown>) =>
+          (b.paragraphs as Array<Record<string, unknown>> ?? []).flatMap((para: Record<string, unknown>) =>
+            (para.words as Array<Record<string, unknown>> ?? []).map((w: Record<string, unknown>) =>
+              (w.symbols as Array<Record<string, unknown>> ?? []).map((s: Record<string, unknown>) => s.text).join('')
+            ).join(' ')
+          )
+        ).join('\n')
+      }).join('\n')
+    }).join('\n')
+  } else {
+    // 画像はimages:annotateエンドポイント
+    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          image: { content: base64 },
+          features: [{ type: 'DOCUMENT_TEXT_DETECTION' }],
+        }],
+      }),
+    })
+    const data = await res.json()
+    return data.responses?.[0]?.fullTextAnnotation?.text ?? ''
+  }
+}
+
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
@@ -16,48 +65,40 @@ export async function POST(req: NextRequest) {
   const base64 = Buffer.from(bytes).toString('base64')
   const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const content: any[] = [
-    {
-      type: 'document',
-      source: {
-        type: 'base64',
-        media_type: isPdf ? 'application/pdf' : 'image/jpeg',
-        data: base64,
-      },
-    },
-    {
-      type: 'text',
-      text: `このPDF/画像から請求書・明細書の情報を抽出してJSON形式のみで返してください（説明文不要）：
+  try {
+    const extractedText = await extractTextWithVision(base64, isPdf)
+    if (!extractedText.trim()) {
+      return NextResponse.json({ error: 'テキストを抽出できませんでした' }, { status: 400 })
+    }
+
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1500,
+      messages: [{
+        role: 'user',
+        content: `以下のテキストは請求書・明細書から抽出したものです。JSONのみで返してください：
+
+${extractedText}
+
 {
   "invoiceTo": "宛先会社名",
-  "subject": "件名・摘要",
+  "subject": "件名",
   "issueDate": "YYYY-MM-DD",
-  "dueDate": "YYYY-MM-DD（不明な場合は空文字）",
-  "registrationNo": "適格請求書番号（Tから始まる番号、なければ空文字）",
-  "memo": "備考・特記事項",
-  "items": [
-    { "name": "品目名", "quantity": 1, "unit": "式", "unitPrice": 10000, "taxRate": 10, "amount": 10000 }
-  ]
+  "dueDate": "YYYY-MM-DD",
+  "registrationNo": "T番号またはなければ空文字",
+  "memo": "備考",
+  "items": [{ "name": "品目", "quantity": 1, "unit": "式", "unitPrice": 0, "taxRate": 10, "amount": 0 }]
 }`,
-    },
-  ]
-
-  try {
-    const message = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 2000,
-      messages: [{ role: 'user', content }],
+      }],
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
     const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return NextResponse.json({ error: 'JSONの抽出に失敗しました', raw: text.slice(0, 200) }, { status: 500 })
+    if (!jsonMatch) return NextResponse.json({ error: 'JSON解析失敗' }, { status: 500 })
 
-    const data = JSON.parse(jsonMatch[0])
-    return NextResponse.json(data)
+    return NextResponse.json(JSON.parse(jsonMatch[0]))
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: `Claude APIエラー: ${msg}` }, { status: 500 })
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }
