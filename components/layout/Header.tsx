@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Settings, Bell, ChevronRight } from 'lucide-react'
+import { Settings, Bell, ChevronRight, Menu } from 'lucide-react'
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard':  { title: 'ダッシュボード',       description: '社労士AI業務ダッシュボード' },
@@ -23,20 +23,29 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   '/history':    { title: '履歴',                 description: 'これまでに作成したドキュメントの一覧' },
 }
 
-export function Header() {
+export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname()
   const pageInfo = pageTitles[pathname] ?? { title: 'TASUKU AI', description: '' }
 
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-6 sticky top-0 z-10">
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-4 lg:px-6 sticky top-0 z-20">
       {/* ページタイトル */}
-      <div>
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
-          <span>TASUKU AI</span>
-          <ChevronRight size={12} />
-          <span className="text-gray-600">{pageInfo.title}</span>
+      <div className="flex items-center gap-3">
+        {/* ハンバーガーメニュー（モバイルのみ） */}
+        <button
+          onClick={onMenuClick}
+          className="lg:hidden w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+        >
+          <Menu size={20} />
+        </button>
+        <div>
+          <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
+            <span>TASUKU AI</span>
+            <ChevronRight size={12} />
+            <span className="text-gray-600">{pageInfo.title}</span>
+          </div>
+          <h1 className="text-base font-semibold text-gray-900 leading-tight">{pageInfo.title}</h1>
         </div>
-        <h1 className="text-base font-semibold text-gray-900 leading-tight">{pageInfo.title}</h1>
       </div>
 
       {/* 右側アクション */}
@@ -50,7 +59,7 @@ export function Header() {
         {/* 設定ショートカット */}
         <Link
           href="/settings"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-100 transition-colors"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-gray-100 transition-colors"
         >
           <Settings size={14} />
           <span className="text-sm">会社設定</span>

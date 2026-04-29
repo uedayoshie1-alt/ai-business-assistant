@@ -62,7 +62,7 @@ const navItems = [
   },
 ]
 
-export function Sidebar() {
+export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
   const [unconfirmedCount, setUnconfirmedCount] = useState(0)
 
@@ -81,8 +81,11 @@ export function Sidebar() {
   }, [])
 
   return (
-    <aside className="w-64 min-h-screen flex flex-col fixed left-0 top-0 bottom-0 z-20"
-      style={{ background: 'linear-gradient(180deg, #0D1B3E 0%, #0F2347 100%)' }}>
+    <aside
+      className={`w-64 min-h-screen flex flex-col fixed left-0 top-0 bottom-0 z-40 transition-transform duration-300
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}
+      style={{ background: 'linear-gradient(180deg, #0D1B3E 0%, #0F2347 100%)' }}
+    >
 
       {/* ロゴ */}
       <div className="px-5 py-5 border-b border-white/10">
@@ -121,6 +124,7 @@ export function Sidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onClose}
                       className={cn(
                         'flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 group',
                         isActive
