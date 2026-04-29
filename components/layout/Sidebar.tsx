@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useState, useEffect } from 'react'
 import {
   LayoutDashboard,
   Mail,
@@ -35,7 +36,7 @@ const navItems = [
     section: '社労士 AI ツール',
     items: [
       { href: '/receipt', label: '領収書AI仕分け', icon: ScanLine, badge: null },
-      { href: '/law-alerts', label: '法改正アラート', icon: Bell, badge: '3', badgeColor: 'bg-red-500' },
+      { href: '/law-alerts', label: '法改正アラート', icon: Bell, badge: 'dynamic', badgeColor: 'bg-red-500' },
       { href: '/subsidy', label: '助成金マッチング', icon: DollarSign, badge: null },
       { href: '/clients', label: '顧問先管理', icon: Building2, badge: null },
       { href: '/gas', label: 'GAS連携', icon: Zap, badge: null },
@@ -63,6 +64,21 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname()
+  const [unconfirmedCount, setUnconfirmedCount] = useState(0)
+
+  useEffect(() => {
+    const read = () => {
+      try {
+        const n = localStorage.getItem('lawAlertUnconfirmed')
+        setUnconfirmedCount(n ? parseInt(n) : 0)
+      } catch {}
+    }
+    read()
+    window.addEventListener('storage', read)
+    // 同一タブでの更新も検知
+    const interval = setInterval(read, 3000)
+    return () => { window.removeEventListener('storage', read); clearInterval(interval) }
+  }, [])
 
   return (
     <aside className="w-64 min-h-screen flex flex-col fixed left-0 top-0 bottom-0 z-20"
@@ -95,7 +111,10 @@ export function Sidebar() {
                 const Icon = item.icon
                 const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
                 const isSoon = 'badge' in item && item.badge === 'soon'
-                const badgeCount = 'badge' in item && item.badge && item.badge !== 'soon' ? item.badge : null
+                const rawBadge = 'badge' in item && item.badge && item.badge !== 'soon' ? item.badge : null
+                const badgeCount = rawBadge === 'dynamic'
+                  ? (unconfirmedCount > 0 ? String(unconfirmedCount) : null)
+                  : rawBadge
                 const badgeColor = 'badgeColor' in item ? item.badgeColor : 'bg-blue-500'
 
                 return (

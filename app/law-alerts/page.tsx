@@ -57,6 +57,11 @@ export default function LawAlertsPage() {
 
   useEffect(() => { fetchLatestAlerts() }, [])
 
+  useEffect(() => {
+    const count = alerts.filter(a => a.status === 'unconfirmed').length
+    try { localStorage.setItem('lawAlertUnconfirmed', String(count)) } catch {}
+  }, [alerts])
+
   const filtered = alerts.filter(a =>
     (statusFilter === 'all' || a.status === statusFilter) &&
     (importanceFilter === 'all' || a.importance === importanceFilter)
