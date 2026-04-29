@@ -11,7 +11,7 @@ async function verifyAdmin(req: NextRequest) {
   const token = req.headers.get('Authorization')?.replace('Bearer ', '')
   if (!token) return null
   const { data: { user } } = await adminClient.auth.getUser(token)
-  if (!user || user.user_metadata?.role !== 'admin') return null
+  if (!user || (user.app_metadata?.role !== 'admin' && user.user_metadata?.role !== 'admin')) return null
   return user
 }
 

@@ -10,7 +10,7 @@ export function useRole() {
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      const r = (data.user?.user_metadata?.role as 'admin' | 'staff') ?? 'staff'
+      const r = (data.user?.app_metadata?.role ?? data.user?.user_metadata?.role ?? 'staff') as 'admin' | 'staff'
       setRole(r)
       setUserId(data.user?.id ?? null)
       setEmail(data.user?.email ?? null)
