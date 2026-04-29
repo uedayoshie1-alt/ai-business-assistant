@@ -57,7 +57,15 @@ export function InvoiceBuilder() {
         throw new Error(`サーバーエラー(${res.status}): ${text.slice(0, 100)}`)
       }
       const data = await res.json()
-      if (data.items?.length > 0) setItems(data.items)
+      if (data.items?.length > 0) {
+        setItems(data.items.map((item: LineItem) => ({
+          ...item,
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unitPrice) || 0,
+          amount: Number(item.amount) || 0,
+          taxRate: (Number(String(item.taxRate).replace('%', '').trim()) === 8 ? 8 : 10) as 8 | 10,
+        })))
+      }
       setInfo(prev => ({
         ...prev,
         invoiceTo: data.invoiceTo || prev.invoiceTo,
@@ -165,9 +173,10 @@ export function InvoiceBuilder() {
   const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i))
   const addItem = () => setItems((prev) => [...prev, emptyItem()])
 
-  // 税率別集計（型変換して確実に数値比較）
-  const items10 = items.filter((r) => Number(r.taxRate) === 10)
-  const items8 = items.filter((r) => Number(r.taxRate) === 8)
+  // 税率を数値に正規化（"10%"→10, "8%"→8 など）
+  const normTax = (t: unknown) => Number(String(t).replace('%', '').trim()) || 10
+  const items10 = items.filter((r) => normTax(r.taxRate) === 10)
+  const items8 = items.filter((r) => normTax(r.taxRate) === 8)
   const subtotal10 = items10.reduce((s, r) => s + Number(r.quantity) * Number(r.unitPrice), 0)
   const subtotal8 = items8.reduce((s, r) => s + Number(r.quantity) * Number(r.unitPrice), 0)
   const tax10 = Math.floor(subtotal10 * 0.1)
