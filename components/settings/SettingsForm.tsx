@@ -48,12 +48,18 @@ export function SettingsForm() {
   const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
-    setSettings(loadSettings())
-    // ログインユーザーのプロフィールをSupabaseから取得
+    // Supabaseからユーザーの全設定を読み込む
     supabase.auth.getUser().then(({ data }) => {
+      const meta = data.user?.user_metadata ?? {}
       setUserEmail(data.user?.email ?? '')
-      setDisplayName(data.user?.user_metadata?.display_name ?? data.user?.user_metadata?.name ?? '')
-      setSignature(data.user?.user_metadata?.signature ?? '')
+      setDisplayName(meta.display_name ?? meta.name ?? '')
+      setSignature(meta.signature ?? defaultSettings.signature)
+      // 会社情報もSupabaseから（なければlocalStorageにフォールバック）
+      if (meta.settings) {
+        setSettings({ ...defaultSettings, ...meta.settings })
+      } else {
+        setSettings(loadSettings())
+      }
     })
   }, [])
 
@@ -61,8 +67,10 @@ export function SettingsForm() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => setSettings({ ...settings, [key]: e.target.value })
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // SupabaseとlocalStorageの両方に保存
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+    await supabase.auth.updateUser({ data: { settings } })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -127,7 +135,11 @@ export function SettingsForm() {
             <Input value={settings.companyName} onChange={update('companyName')} />
           </FormField>
           <FormField label="担当者名" required>
-            <Input value={settings.userName} onChange={update('userName')} placeholder="例：山田 太郎" />
+            <Input
+              value={settings.userName || displayName}
+              onChange={update('userName')}
+              placeholder="例：山田 太郎"
+            />
           </FormField>
         </div>
         <FormField label="会社・サービスの説明">
@@ -184,18 +196,26 @@ export function SettingsForm() {
         />
       </SectionCard>
 
-      {/* 署名 */}
+      {/* 署名 - プロフィールのsignatureと統合 */}
       <SectionCard
         icon={<PenLine size={18} className="text-blue-600" />}
         title="よく使う署名"
-        description="メール生成時に自動で挿入されます"
+        description="ログインユーザーごとに設定できます。メール生成時に自動で挿入されます"
       >
         <Textarea
-          value={settings.signature}
-          onChange={update('signature')}
+          value={signature}
+          onChange={e => setSignature(e.target.value)}
           rows={6}
           className="font-mono text-xs"
         />
+        <Button
+          variant="primary"
+          onClick={handleProfileSave}
+          disabled={profileLoading}
+          icon={profileSaved ? <Check size={15} /> : undefined}
+        >
+          {profileSaved ? '保存しました' : profileLoading ? '保存中...' : '署名を保存'}
+        </Button>
       </SectionCard>
 
       {/* テンプレート管理（プレースホルダー） */}
