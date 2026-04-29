@@ -3,7 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-async function extractTextWithVision(base64: string, isPdf: boolean): Promise<string> {
+async function extractTextWithVision(base64: string, isPdf: boolean): Promise<{ text: string; raw: string }> {
   const apiKey = process.env.GOOGLE_VISION_API_KEY
   if (!apiKey) throw new Error('Vision API key not configured')
 
@@ -20,10 +20,14 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<st
       }),
     })
     const data = await res.json()
-    // デバッグ用：生レスポンスをそのまま返す
-    return JSON.stringify(data).slice(0, 2000)
+    const raw = JSON.stringify(data).slice(0, 1000)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const innerResponses: any[] = data.responses?.[0]?.responses ?? []
+    const text = innerResponses
+      .map((r: Record<string, unknown>) => (r.fullTextAnnotation as Record<string, unknown>)?.text ?? '')
+      .join('\n')
+    return { text, raw }
   } else {
-    // 画像はimages:annotateエンドポイント
     const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -35,7 +39,8 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<st
       }),
     })
     const data = await res.json()
-    return data.responses?.[0]?.fullTextAnnotation?.text ?? ''
+    const text = data.responses?.[0]?.fullTextAnnotation?.text ?? ''
+    return { text, raw: JSON.stringify(data).slice(0, 500) }
   }
 }
 
@@ -53,9 +58,11 @@ export async function POST(req: NextRequest) {
   const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
 
   try {
-    const extractedText = await extractTextWithVision(base64, isPdf)
-    // デバッグ用
-    return NextResponse.json({ debug: extractedText.slice(0, 500) })
+    const { text: extractedText, raw } = await extractTextWithVision(base64, isPdf)
+
+    if (!extractedText.trim()) {
+      return NextResponse.json({ error: 'テキストを抽出できませんでした', debug: raw }, { status: 400 })
+    }
 
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
