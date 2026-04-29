@@ -15,7 +15,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
   '/email':      { title: 'メール作成',           description: 'AIが自然なメールを作成します' },
   '/minutes':    { title: '議事録作成',           description: '会議メモを整理された議事録に変換します' },
   '/instagram':  { title: 'Instagram投稿作成',   description: 'AIがInstagramの投稿文・ハッシュタグを作成します' },
-  '/invoice':    { title: '明細書作成',           description: 'CSV・Excelをアップロードして明細書を自動生成します' },
+  '/invoice':    { title: '請求明細書',             description: 'CSV・Excel・PDFをアップロードして明細書を自動生成します' },
   '/customers':  { title: '顧客リスト',           description: '講座申し込み顧客の一覧・管理' },
   '/estimate':   { title: '見積作成',             description: '見積書の作成・管理' },
   '/reservation':{ title: '予約対応',             description: '予約の確認・返信文の作成' },

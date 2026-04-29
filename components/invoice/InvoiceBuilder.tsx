@@ -44,7 +44,37 @@ export function InvoiceBuilder() {
   })
   const inputRef = useRef<HTMLInputElement>(null)
 
+  const parsePdf = async (file: File) => {
+    setFileName(file.name)
+    setStatus('uploading')
+    setErrorMsg('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/invoice/parse-pdf', { method: 'POST', body: formData })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'PDF解析に失敗しました')
+      if (data.items?.length > 0) setItems(data.items)
+      setInfo(prev => ({
+        ...prev,
+        invoiceTo: data.invoiceTo || prev.invoiceTo,
+        subject: data.subject || prev.subject,
+        issueDate: data.issueDate || prev.issueDate,
+        dueDate: data.dueDate || prev.dueDate,
+        registrationNo: data.registrationNo || prev.registrationNo,
+        memo: data.memo || prev.memo,
+      }))
+      setStatus('preview')
+    } catch (e: unknown) {
+      setErrorMsg(`PDF読み込みエラー: ${e instanceof Error ? e.message : String(e)}`)
+      setStatus('idle')
+    }
+  }
+
   const parseFile = async (file: File) => {
+    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+      return parsePdf(file)
+    }
     setFileName(file.name)
     setStatus('uploading')
     setErrorMsg('')
@@ -168,8 +198,8 @@ export function InvoiceBuilder() {
       <div className="flex items-center gap-3 bg-teal-50 border border-teal-100 rounded-xl px-4 py-3">
         <div className="w-1.5 h-10 bg-teal-400 rounded-full shrink-0" />
         <div>
-          <p className="text-sm font-medium text-teal-900">CSV・Excelをアップロードしてインボイス対応の明細書を自動生成します</p>
-          <p className="text-xs text-teal-600 mt-0.5">列の順番：<span className="font-semibold">品名 / 数量 / 単位 / 単価 / 税率（10 or 8）</span></p>
+          <p className="text-sm font-medium text-teal-900">CSV・Excel・PDFをアップロードしてインボイス対応の請求明細書を自動生成します</p>
+          <p className="text-xs text-teal-600 mt-0.5">CSV/Excel列の順番：<span className="font-semibold">品名 / 数量 / 単位 / 単価 / 税率（10 or 8）</span>　／　PDF：AIが自動解析</p>
         </div>
       </div>
 
@@ -186,9 +216,9 @@ export function InvoiceBuilder() {
           <div className="text-center">
             <p className="text-sm font-medium text-gray-700">ファイルをドラッグ＆ドロップ</p>
             <p className="text-xs text-gray-400 mt-1">または クリックしてファイルを選択</p>
-            <p className="text-xs text-gray-300 mt-2">対応形式：CSV / Excel（.xlsx, .xls）</p>
+            <p className="text-xs text-gray-300 mt-2">対応形式：CSV / Excel（.xlsx, .xls）/ PDF</p>
           </div>
-          <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
+          <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={handleFileChange} />
         </div>
       )}
 
