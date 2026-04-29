@@ -18,7 +18,6 @@ import {
   Bell,
   Building2,
   Zap,
-  BarChart2,
   ScanLine,
   DollarSign,
   MessageCircle,
@@ -38,11 +37,10 @@ const navItems = [
     section: '社労士 AI ツール',
     items: [
       { href: '/receipt', label: '領収書AI仕分け', icon: ScanLine, badge: null },
-      { href: '/law-alerts', label: '法改正アラート', icon: Bell, badge: 'dynamic', badgeColor: 'bg-red-500' },
+      { href: '/law-alerts', label: '法改正アラート', icon: Bell, badge: null },
       { href: '/subsidy', label: '助成金マッチング', icon: DollarSign, badge: null },
       { href: '/clients', label: '顧問先管理', icon: Building2, badge: null },
       { href: '/gas', label: 'GAS連携', icon: Zap, badge: null },
-      { href: '/reports', label: 'レポート', icon: BarChart2, badge: null },
     ],
   },
   {

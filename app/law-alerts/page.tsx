@@ -48,6 +48,7 @@ export default function LawAlertsPage() {
           status: a.status ?? 'unconfirmed',
         })))
         setGeneratedAt(data.generatedAt)
+        try { localStorage.setItem('lawAlertLastFetch', new Date().toISOString()) } catch {}
       }
     } catch (err) {
       console.error('Failed to fetch law alerts:', err)
@@ -56,7 +57,20 @@ export default function LawAlertsPage() {
     }
   }
 
-  useEffect(() => { fetchLatestAlerts() }, [])
+  useEffect(() => {
+    // 最終取得から24時間以上経過していたら自動取得
+    try {
+      const lastFetch = localStorage.getItem('lawAlertLastFetch')
+      const hoursSince = lastFetch
+        ? (Date.now() - new Date(lastFetch).getTime()) / (1000 * 60 * 60)
+        : 999
+      if (hoursSince >= 24) {
+        fetchLatestAlerts()
+      }
+    } catch {
+      fetchLatestAlerts()
+    }
+  }, [])
 
   useEffect(() => {
     const count = alerts.filter(a => a.status === 'unconfirmed').length
