@@ -19,6 +19,7 @@ import {
   BarChart2,
   ScanLine,
   DollarSign,
+  MessageCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -26,7 +27,8 @@ const navItems = [
   {
     section: 'メイン',
     items: [
-      { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
+        { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
+      { href: '/chat', label: 'AIチャット', icon: MessageCircle, badge: null },
     ],
   },
   {
