@@ -20,12 +20,8 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<st
       }),
     })
     const data = await res.json()
-    // files:annotate のレスポンス構造: data.responses[0].responses[].fullTextAnnotation.text
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const innerResponses: any[] = data.responses?.[0]?.responses ?? []
-    return innerResponses
-      .map((r: Record<string, unknown>) => (r.fullTextAnnotation as Record<string, unknown>)?.text ?? '')
-      .join('\n')
+    // デバッグ用：生レスポンスをそのまま返す
+    return JSON.stringify(data).slice(0, 2000)
   } else {
     // 画像はimages:annotateエンドポイント
     const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
@@ -58,9 +54,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const extractedText = await extractTextWithVision(base64, isPdf)
-    if (!extractedText.trim()) {
-      return NextResponse.json({ error: 'テキストを抽出できませんでした' }, { status: 400 })
-    }
+    // デバッグ用
+    return NextResponse.json({ debug: extractedText.slice(0, 500) })
 
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
