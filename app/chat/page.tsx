@@ -71,17 +71,40 @@ export default function ChatPage() {
     setInput('')
     setIsLoading(true)
 
+    // ストリーミング用に空のアシスタントメッセージを追加
+    setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages, fileContent }),
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error)
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
+      if (!res.ok) throw new Error('サーバーエラー')
+      if (!res.body) throw new Error('レスポンスなし')
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const chunk = decoder.decode(value)
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last.role === 'assistant') {
+            updated[updated.length - 1] = { ...last, content: last.content + chunk }
+          }
+          return updated
+        })
+      }
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: `エラーが発生しました: ${String(err)}` }])
+      setMessages(prev => {
+        const updated = [...prev]
+        updated[updated.length - 1] = { role: 'assistant', content: `エラーが発生しました: ${String(err)}` }
+        return updated
+      })
     } finally {
       setIsLoading(false)
     }
@@ -191,6 +214,15 @@ export default function ChatPage() {
 
         {/* 入力エリア */}
         <div className="pt-3 border-t border-slate-100 space-y-2">
+          {/* ファイル添付ボタン */}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-colors w-full"
+          >
+            <Upload size={13} />
+            PDF・テキスト・CSVを添付して内容について質問する
+          </button>
+
           <div className="flex items-end gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-3 focus-within:border-indigo-400 transition-colors shadow-sm">
             <textarea
               ref={textareaRef}
@@ -201,22 +233,13 @@ export default function ChatPage() {
               rows={1}
               className="flex-1 text-sm text-slate-800 resize-none outline-none bg-transparent placeholder:text-slate-400 max-h-32"
             />
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => fileRef.current?.click()}
-                className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                <Upload size={15} />
-              </button>
-              <button
-                onClick={() => sendMessage(input)}
-                disabled={!input.trim() || isLoading}
-                className="w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg transition-colors">
-                <Send size={14} />
-              </button>
-            </div>
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || isLoading}
+              className="w-8 h-8 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg transition-colors shrink-0">
+              <Send size={14} />
+            </button>
           </div>
-          <p className="text-[11px] text-slate-400 text-center">
-            PDFや文書を添付して内容について質問できます
-          </p>
         </div>
 
         <input ref={fileRef} type="file" accept=".pdf,.txt,.csv,.xlsx,.docx" className="hidden" onChange={handleFile} />

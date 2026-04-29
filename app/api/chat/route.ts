@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -24,7 +24,7 @@ const SYSTEM_PROMPT = `あなたは社会保険労務士事務所向けのAIア�
 
 export async function POST(req: NextRequest) {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
+    return new Response(JSON.stringify({ error: 'API key not configured' }), { status: 500 })
   }
 
   const { messages, fileContent } = await req.json() as {
@@ -36,13 +36,25 @@ export async function POST(req: NextRequest) {
     ? `${SYSTEM_PROMPT}\n\n【アップロードされた文書の内容】\n${fileContent}`
     : SYSTEM_PROMPT
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
-    system: systemWithDoc,
-    messages,
+  const encoder = new TextEncoder()
+  const stream = new ReadableStream({
+    async start(controller) {
+      const anthropicStream = client.messages.stream({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2000,
+        system: systemWithDoc,
+        messages,
+      })
+      for await (const chunk of anthropicStream) {
+        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+          controller.enqueue(encoder.encode(chunk.delta.text))
+        }
+      }
+      controller.close()
+    },
   })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
-  return NextResponse.json({ message: text })
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  })
 }
