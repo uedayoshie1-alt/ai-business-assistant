@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import Anthropic from '@anthropic-ai/sdk'
 
-const VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate'
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData()
@@ -10,28 +11,31 @@ export async function POST(req: NextRequest) {
   const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
 
   if (isPdf) {
-    const apiKey = process.env.GOOGLE_VISION_API_KEY
-    if (!apiKey) return NextResponse.json({ error: 'Vision API key not configured' }, { status: 500 })
-
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
+    }
     const bytes = await file.arrayBuffer()
     const base64 = Buffer.from(bytes).toString('base64')
 
-    const res = await fetch(`${VISION_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requests: [{
-          image: { content: base64 },
-          features: [{ type: 'DOCUMENT_TEXT_DETECTION', maxResults: 1 }],
-        }],
-      }),
+    const message = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: { type: 'base64', media_type: 'application/pdf', data: base64 },
+          } as Parameters<typeof client.messages.create>[0]['messages'][0]['content'][0],
+          {
+            type: 'text',
+            text: 'このPDFの内容をすべてそのままテキストとして書き出してください。要約せず、記載されている内容をすべて抽出してください。',
+          },
+        ],
+      }],
     })
 
-    const data = await res.json()
-    const apiError = data.responses?.[0]?.error
-    if (apiError) return NextResponse.json({ error: apiError.message }, { status: 500 })
-
-    const text = data.responses?.[0]?.fullTextAnnotation?.text ?? ''
+    const text = message.content[0].type === 'text' ? message.content[0].text : ''
     return NextResponse.json({ text: text.slice(0, 15000), type: 'pdf' })
   }
 
