@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import {
   ScanLine, Bell, DollarSign, Clock, TrendingUp, AlertTriangle,
   CheckCircle2, FileText, Building2, ChevronRight, Sparkles,
   ArrowUpRight, Calendar,
 } from 'lucide-react'
-import { mockReceipts, mockLawAlerts, mockSubsidies, mockClients } from '@/lib/mock-data'
+import { mockSubsidies, mockClients } from '@/lib/mock-data'
+import { fetchReceipts } from '@/lib/db'
 import { cn } from '@/lib/utils'
 
 function StatCard({
@@ -49,17 +51,33 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const totalReceipts = mockReceipts.length
-  const videoReceipts = mockReceipts.filter(r => r.sourceType === 'video').length
-  const pendingReceipts = mockReceipts.filter(r => r.status === 'pending').length
-  const newAlerts = mockLawAlerts.filter(r => r.status === 'unconfirmed').length
-  const reviewingAlerts = mockLawAlerts.filter(r => r.status === 'reviewing').length
+  const [newAlerts, setNewAlerts] = useState(0)
+  const [totalReceipts, setTotalReceipts] = useState(0)
+  const [pendingReceipts, setPendingReceipts] = useState(0)
+  const [videoReceipts, setVideoReceipts] = useState(0)
+
+  useEffect(() => {
+    // 法改正未確認件数をlocalStorageから取得
+    try {
+      const n = localStorage.getItem('lawAlertUnconfirmed')
+      setNewAlerts(n ? parseInt(n) : 0)
+    } catch {}
+
+    // 領収書データをSupabase DBから取得
+    fetchReceipts().then(receipts => {
+      setTotalReceipts(receipts.length)
+      setPendingReceipts(receipts.filter(r => r.status === 'pending').length)
+      setVideoReceipts(receipts.filter(r => r.sourceType === 'video').length)
+    }).catch(() => {})
+  }, [])
+
+  const reviewingAlerts = 0
   const candidateSubsidies = mockSubsidies.filter(r => r.status === 'candidate').length
   const totalClients = mockClients.length
   const totalSubsidyAmount = '¥2,180万円'
   const timeSaved = '38.5時間'
 
-  const recentAlerts = mockLawAlerts.filter(a => a.status === 'unconfirmed').slice(0, 3)
+  const recentAlerts: never[] = []
   const topSubsidies = mockSubsidies.filter(s => s.status === 'candidate').sort((a, b) => b.score - a.score).slice(0, 3)
 
   const today = new Date()
@@ -171,8 +189,8 @@ export default function DashboardPage() {
           />
           <StatCard
             label="対応済み法改正"
-            value={`${mockLawAlerts.filter(a => a.status === 'notified').length}件`}
-            sub="顧問先案内済み"
+            value={`${newAlerts > 0 ? '確認待ち' : '対応中'}`}
+            sub="法改正アラートを確認"
             icon={CheckCircle2}
             color="bg-teal-500"
             href="/law-alerts"
@@ -244,21 +262,18 @@ export default function DashboardPage() {
               </Link>
             </div>
             <div className="divide-y divide-slate-50">
-              {recentAlerts.map(alert => (
-                <Link key={alert.id} href="/law-alerts" className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 transition-colors">
-                  <span className={cn(
-                    'text-[10px] font-bold px-2 py-0.5 rounded-full border mt-0.5 shrink-0',
-                    importanceColors[alert.importance]
-                  )}>
-                    {importanceLabels[alert.importance]}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-800 truncate">{alert.title}</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">{alert.source} · 施行 {alert.effectiveDate}</p>
+              {newAlerts > 0 ? (
+                <Link href="/law-alerts" className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 transition-colors">
+                  <Bell size={16} className="text-red-500 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-slate-800">未確認の法改正が{newAlerts}件あります</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">法改正アラートページで確認してください</p>
                   </div>
-                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium shrink-0">未確認</span>
+                  <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium shrink-0">要確認</span>
                 </Link>
-              ))}
+              ) : (
+                <></>
+              )}
               {recentAlerts.length === 0 && (
                 <div className="px-5 py-6 text-center">
                   <CheckCircle2 size={24} className="text-emerald-400 mx-auto mb-2" />
