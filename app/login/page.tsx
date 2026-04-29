@@ -31,7 +31,7 @@ export default function LoginPage() {
         router.push('/dashboard')
       }
     } else {
-      const { error } = await supabase.auth.signUp({ email, password })
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { role: 'staff' } } })
       if (error) {
         setError(error.message.includes('already') ? 'このメールアドレスはすでに登録されています' : error.message)
       } else {

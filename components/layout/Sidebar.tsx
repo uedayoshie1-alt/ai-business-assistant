@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { useRole } from '@/lib/useRole'
 import {
   LayoutDashboard,
   Mail,
@@ -21,6 +22,7 @@ import {
   ScanLine,
   DollarSign,
   MessageCircle,
+  Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -62,8 +64,19 @@ const navItems = [
   },
 ]
 
+const adminNavItems = [
+  {
+    section: '管理者',
+    items: [
+      { href: '/admin', label: 'ユーザー管理', icon: Crown, badge: null },
+    ],
+  },
+]
+
+
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
+  const { isAdmin } = useRole()
   const [unconfirmedCount, setUnconfirmedCount] = useState(0)
 
   useEffect(() => {
@@ -103,7 +116,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
 
       {/* ナビゲーション */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-        {navItems.map((section) => (
+        {[...navItems, ...(isAdmin ? adminNavItems : [])].map((section) => (
           <div key={section.section}>
             <p className="text-[10px] font-semibold uppercase tracking-widest px-2 mb-1.5"
               style={{ color: '#4B6FA8' }}>
