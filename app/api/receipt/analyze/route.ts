@@ -1,186 +1,194 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const DOC_AI_URL = 'https://us-documentai.googleapis.com/v1/projects/594849327580/locations/us/processors/95b589882a126e56:process'
 const VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate'
 
-function extractReceiptData(text: string) {
-  // 日付抽出
+const CATEGORY_RULES: [string, string[]][] = [
+  ['研修費',    ['講座', '受講料', 'セミナー', '研修', '講習', '勉強会', 'スクール', '資格']],
+  ['旅費交通費', ['タクシー', '電車', '新幹線', 'バス', '交通', '駐車', 'Suica', 'PASMO', 'IC', '運賃', 'ホテル', '宿泊']],
+  ['会議費',    ['コーヒー', 'カフェ', 'スタバ', 'スターバックス', 'ドトール', 'ミスド', 'ベローチェ']],
+  ['交際費',    ['レストラン', '食事', '居酒屋', '料理', '飲食', 'ランチ', 'ディナー', 'ホテル']],
+  ['消耗品費',  ['コンビニ', 'セブン', 'ローソン', 'ファミマ', 'ミニストップ', '文房具', '事務用品']],
+  ['通信費',    ['ドコモ', 'au', 'ソフトバンク', 'インターネット', '通信']],
+  ['新聞図書費',['書店', '本屋', 'Amazon', 'アマゾン', '雑誌', '書籍']],
+  ['水道光熱費',['電気', 'ガス', '水道']],
+]
+
+function guessCategory(text: string): string {
+  const lower = text.toLowerCase()
+  for (const [cat, keywords] of CATEGORY_RULES) {
+    if (keywords.some(kw => lower.includes(kw.toLowerCase()))) return cat
+  }
+  return '雑費'
+}
+
+// Document AI Expense Parser で解析
+async function analyzeWithDocumentAI(base64: string, mimeType: string) {
+  const apiKey = process.env.GOOGLE_DOCUMENT_AI_KEY
+  if (!apiKey) throw new Error('Document AI key not configured')
+
+  const res = await fetch(`${DOC_AI_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rawDocument: { content: base64, mimeType },
+    }),
+  })
+
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(err.error?.message ?? `Document AI error ${res.status}`)
+  }
+
+  const data = await res.json()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entities: any[] = data.document?.entities ?? []
+
+  const get = (type: string) => entities.find((e: Record<string, unknown>) => e.type === type)
+
+  // 金額
+  const totalEntity = get('total_amount') ?? get('net_amount')
+  let amount = 0
+  if (totalEntity?.normalizedValue?.moneyValue?.units) {
+    amount = parseInt(totalEntity.normalizedValue.moneyValue.units)
+  } else if (totalEntity?.mentionText) {
+    amount = parseInt(totalEntity.mentionText.replace(/[^0-9]/g, ''))
+  }
+
+  // 日付
+  let date = new Date().toISOString().split('T')[0]
+  const dateEntity = get('receipt_date') ?? get('purchase_date')
+  if (dateEntity?.normalizedValue?.dateValue) {
+    const d = dateEntity.normalizedValue.dateValue
+    date = `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.day).padStart(2, '0')}`
+  } else if (dateEntity?.mentionText) {
+    const m = dateEntity.mentionText.match(/(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/)
+    if (m) date = `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
+  }
+
+  // 支払先
+  const vendorEntity = get('supplier_name') ?? get('vendor_name')
+  const vendor = vendorEntity?.mentionText?.trim() ?? '不明'
+
+  // 全テキスト（カテゴリ推定用）
+  const fullText = data.document?.text ?? vendor
+  const accountCategory = guessCategory(fullText)
+
+  // 税率
+  const taxRate = fullText.includes('8%') ? 8 : 10
+
+  return { date, amount, vendor, accountCategory, taxRate, fullText }
+}
+
+// Vision API フォールバック（テキスト抽出のみ）
+async function extractTextWithVision(base64: string): Promise<string> {
+  const apiKey = process.env.GOOGLE_VISION_API_KEY
+  if (!apiKey) return ''
+
+  const res = await fetch(`${VISION_API_URL}?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requests: [{ image: { content: base64 }, features: [{ type: 'DOCUMENT_TEXT_DETECTION' }] }],
+    }),
+  })
+  const data = await res.json()
+  return data.responses?.[0]?.fullTextAnnotation?.text ?? ''
+}
+
+function extractFromText(text: string) {
+  // 日付
   const datePatterns = [
     /(\d{4})[\/\-年](\d{1,2})[\/\-月](\d{1,2})/,
     /令和\s*(\d+)年\s*(\d{1,2})月\s*(\d{1,2})日/,
-    /R(\d+)[\.\/](\d{1,2})[\.\/](\d{1,2})/,
   ]
   let date = new Date().toISOString().split('T')[0]
-  for (const pattern of datePatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      if (pattern.source.includes('令和') || pattern.source.includes('R(')) {
-        const year = 2018 + parseInt(match[1])
-        date = `${year}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
-      } else {
-        let year = parseInt(match[1])
-        // OCR誤読補正：2010〜2019は2020〜2029の誤読の可能性（"2"→"1"の誤認識）
-        if (year >= 2010 && year <= 2019) year += 10
-        // それ以外の異常値は現在年を使用
-        if (year < 2020 || year > 2035) year = new Date().getFullYear()
-        date = `${year}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
-      }
+  for (const p of datePatterns) {
+    const m = text.match(p)
+    if (m) {
+      let year = parseInt(m[1])
+      if (p.source.includes('令和')) year = 2018 + year
+      if (year >= 2010 && year <= 2019) year += 10
+      if (year < 2020 || year > 2035) year = new Date().getFullYear()
+      date = `${year}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`
       break
     }
   }
 
-  // 金額抽出（優先度順：ご請求金額 > 合計 > ¥マーク）
+  // 金額
   const amountPatterns = [
     /ご請求金額[^\d]*([0-9,，]+)/,
     /請求金額[^\d]*([0-9,，]+)/,
-    /お支払い金額[^\d]*([0-9,，]+)/,
-    /お支払金額[^\d]*([0-9,，]+)/,
     /合[計計][^\d\n]{0,10}([0-9,，]{3,})/,
-    /お会計[^\d]*([0-9,，]+)/,
-    /総額[^\d]*([0-9,，]+)/,
     /金額\s*([0-9,，]+)円/,
     /[¥￥]([0-9,，]{3,})/,
   ]
   let amount = 0
-  for (const pattern of amountPatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      const candidate = parseInt(match[1].replace(/[,，]/g, ''))
-      // 明らかに大きすぎる（100万以上）または0の場合はスキップ
-      if (candidate > 0 && candidate < 1000000) {
-        amount = candidate
-        break
-      }
+  for (const p of amountPatterns) {
+    const m = text.match(p)
+    if (m) {
+      const v = parseInt(m[1].replace(/[,，]/g, ''))
+      if (v > 0 && v < 1000000) { amount = v; break }
     }
   }
-  // フォールバック：¥マーク後の数値で妥当な範囲のもの
-  if (amount === 0) {
-    const yenMatches = [...text.matchAll(/[¥￥]([0-9,，]+)/g)]
-    const candidates = yenMatches
-      .map(m => parseInt(m[1].replace(/[,，]/g, '')))
-      .filter(n => n >= 100 && n < 1000000)
-    if (candidates.length > 0) amount = Math.max(...candidates)
-  }
 
-  // 支払先（タイトル行・数字のみ行を除外し、会社名を優先）
-  const skipWords = ['領収書', 'りょうしゅうしょ', 'receipt', 'RECEIPT', '様', 'No.', '発行日', '但し', '内訳']
-  const lines = text.split('\n').map(l => l.trim()).filter(l =>
-    l.length > 1 &&
-    !/^\d+$/.test(l) &&
-    !skipWords.some(w => l.includes(w))
-  )
-  // 株式会社・有限会社などを優先
-  const companyLine = lines.find(l => /株式会社|有限会社|合同会社|一般社団法人|NPO/.test(l))
+  // 支払先
+  const skipWords = ['領収書', 'receipt', '様', 'No.', '発行日', '但し']
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1 && !skipWords.some(w => l.includes(w)))
+  const companyLine = lines.find(l => /株式会社|有限会社|合同会社|店/.test(l))
   const vendor = companyLine || lines[0] || '不明'
 
-  // 但し書き（用途）を抽出
-  const tadashiMatch = text.match(/但し\s*(.+?)(?:\s*として|\s*\n|$)/)
-  const purpose = tadashiMatch ? tadashiMatch[1].trim() : vendor
-
-  // 税率
-  const taxRate = text.includes('10%') ? 10 : text.includes('8%') ? 8 : 10
-
-  // 勘定科目推定
-  const categoryRules: [string, string[]][] = [
-    ['研修費',    ['講座', '受講料', 'セミナー', '研修', '講習', '勉強会', 'スクール', '資格']],
-    ['旅費交通費', ['タクシー', '電車', '新幹線', 'バス', '交通', '駐車', 'Suica', 'PASMO', 'IC', '運賃']],
-    ['会議費',    ['コーヒー', 'カフェ', 'スタバ', 'スターバックス', 'ドトール', 'ミスド', 'ベローチェ']],
-    ['交際費',    ['レストラン', '食事', '居酒屋', '料理', '飲食', 'ランチ', 'ディナー']],
-    ['消耗品費',  ['コンビニ', 'セブン', 'ローソン', 'ファミマ', 'ミニストップ', '文房具', '事務用品']],
-    ['通信費',    ['ドコモ', 'au', 'ソフトバンク', 'インターネット', '通信']],
-    ['新聞図書費',['書店', '本屋', 'Amazon', 'アマゾン', '雑誌', '書籍']],
-    ['水道光熱費',['電気', 'ガス', '水道']],
-  ]
-  let accountCategory = '雑費'
-  const lowerText = text.toLowerCase()
-  for (const [cat, keywords] of categoryRules) {
-    if (keywords.some(kw => lowerText.includes(kw.toLowerCase()))) {
-      accountCategory = cat
-      break
-    }
-  }
-
-  const suggestions = [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i)
-
-  return { date, amount, vendor, purpose, accountCategory, taxRate, suggestions }
+  return { date, amount, vendor, accountCategory: guessCategory(text), taxRate: text.includes('8%') ? 8 : 10 }
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GOOGLE_VISION_API_KEY
-  if (!apiKey) {
-    return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
-  }
-
   const formData = await req.formData()
   const files = formData.getAll('images') as File[]
-
-  if (files.length === 0) {
-    return NextResponse.json({ error: 'No images provided' }, { status: 400 })
-  }
+  if (files.length === 0) return NextResponse.json({ error: 'No images provided' }, { status: 400 })
 
   const results = []
 
   for (const file of files) {
     const bytes = await file.arrayBuffer()
     const base64 = Buffer.from(bytes).toString('base64')
+    const mimeType = file.type || 'image/jpeg'
 
-    const visionRes = await fetch(`${VISION_API_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requests: [{
-          image: { content: base64 },
-          features: [{ type: 'TEXT_DETECTION', maxResults: 1 }],
-        }],
-      }),
-    })
+    try {
+      // Document AI で解析（高精度）
+      const { date, amount, vendor, accountCategory, taxRate } = await analyzeWithDocumentAI(base64, mimeType)
 
-    const visionData = await visionRes.json()
-
-    // APIエラーチェック
-    const apiError = visionData.responses?.[0]?.error
-    if (apiError) {
-      return NextResponse.json({ error: `Vision API error: ${apiError.message} (code: ${apiError.code})` }, { status: 500 })
-    }
-    if (visionData.error) {
-      return NextResponse.json({ error: `Vision API error: ${visionData.error.message}` }, { status: 500 })
-    }
-
-    const text: string = visionData.responses?.[0]?.fullTextAnnotation?.text ?? ''
-
-    if (!text) {
       results.push({
         id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        date: new Date().toISOString().split('T')[0],
-        amount: 0,
-        vendor: file.name,
-        purpose: 'テキスト検出できませんでした',
-        accountCategory: '雑費',
-        accountCategorySuggestions: ['雑費'],
-        taxRate: 10,
+        date, amount, vendor,
+        purpose: vendor,
+        accountCategory,
+        accountCategorySuggestions: [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i),
+        taxRate,
         status: 'pending',
         sourceType: 'image',
-        reason: 'OCRでテキストを検出できませんでした。手動で入力してください。',
+        reason: `Document AI（Expense Parser）により自動抽出。支払先「${vendor}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
         extractedAt: new Date().toISOString(),
       })
-      continue
+    } catch {
+      // Document AI 失敗時はVision APIにフォールバック
+      try {
+        const text = await extractTextWithVision(base64)
+        if (!text) continue
+        const { date, amount, vendor, accountCategory, taxRate } = extractFromText(text)
+        results.push({
+          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          date, amount, vendor,
+          purpose: vendor,
+          accountCategory,
+          accountCategorySuggestions: [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i),
+          taxRate,
+          status: 'pending',
+          sourceType: 'image',
+          reason: `OCR解析により自動抽出。支払先「${vendor}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
+          extractedAt: new Date().toISOString(),
+        })
+      } catch { continue }
     }
-
-    const { date, amount, vendor, purpose, accountCategory, taxRate, suggestions } = extractReceiptData(text)
-
-    results.push({
-      id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      date,
-      amount,
-      vendor,
-      purpose,
-      accountCategory,
-      accountCategorySuggestions: suggestions,
-      taxRate,
-      status: 'pending',
-      sourceType: 'image',
-      reason: `OCR解析により自動抽出。支払先「${vendor}」、用途「${purpose}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
-      extractedAt: new Date().toISOString(),
-    })
   }
 
   return NextResponse.json({ receipts: results })
