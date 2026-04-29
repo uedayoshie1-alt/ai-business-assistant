@@ -32,14 +32,19 @@ function MessageBubble({ msg }: { msg: Message }) {
           : 'bg-white border border-slate-100 text-slate-800 rounded-tl-sm shadow-sm'
       )}>
         {isUser ? msg.content : (
-          <div className="prose prose-sm max-w-none prose-slate"
+          <div className="text-sm leading-relaxed whitespace-pre-wrap"
             dangerouslySetInnerHTML={{
               __html: msg.content
+                // 余計な記号を除去
+                .replace(/#{1,6}\s/g, '')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.+?)\*/g, '<em>$1</em>')
-                .replace(/^### (.+)$/gm, '<h3 class="font-bold text-sm mt-2 mb-1">$1</h3>')
-                .replace(/^## (.+)$/gm, '<h2 class="font-bold text-base mt-3 mb-1">$1</h2>')
-                .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+                .replace(/\*(.+?)\*/g, '$1')
+                .replace(/- \[ \]/g, '・')
+                .replace(/- \[x\]/gi, '✓')
+                .replace(/^\s*[-*]\s/gm, '・')
+                .replace(/`([^`]+)`/g, '<code class="bg-slate-100 px-1 rounded text-xs">$1</code>')
+                // 見出し記号を整形
+                .replace(/^■\s*(.+)$/gm, '<strong class="block mt-3 mb-1 text-slate-800">■ $1</strong>')
                 .replace(/\n/g, '<br />')
             }}
           />
