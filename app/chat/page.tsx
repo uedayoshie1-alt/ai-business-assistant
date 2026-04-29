@@ -114,18 +114,19 @@ export default function ChatPage() {
     const file = e.target.files?.[0]
     if (!file) return
     setFileName(file.name)
+    setFileContent('読み込み中...')
 
-    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-      // PDFはVision APIで解析
+    try {
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/invoice/parse-pdf', { method: 'POST', body: formData })
+      const res = await fetch('/api/chat/parse-file', { method: 'POST', body: formData })
       const data = await res.json()
-      setFileContent(JSON.stringify(data))
-    } else {
-      // テキスト・CSV系はそのまま読む
-      const text = await file.text()
-      setFileContent(text.slice(0, 10000))
+      if (!res.ok) throw new Error(data.error ?? '読み込み失敗')
+      setFileContent(data.text || '（テキストを抽出できませんでした）')
+    } catch (err) {
+      setFileContent(null)
+      setFileName(null)
+      alert('ファイル読み込みエラー: ' + String(err))
     }
   }
 
