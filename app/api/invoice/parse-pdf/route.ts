@@ -16,25 +16,19 @@ export async function POST(req: NextRequest) {
   const base64 = Buffer.from(bytes).toString('base64')
   const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf')
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 2000,
-    messages: [{
-      role: 'user',
-      content: [
-        {
-          type: 'document',
-          source: {
-            type: 'base64',
-            media_type: isPdf ? 'application/pdf' : 'image/jpeg',
-            data: base64,
-          },
-        } as unknown as Anthropic.TextBlockParam,
-        {
-          type: 'text',
-          text: `このPDF/画像から請求書・明細書の情報を抽出してJSON形式で返してください。
-
-以下のJSON形式のみを返してください（説明文不要）：
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content: any[] = [
+    {
+      type: 'document',
+      source: {
+        type: 'base64',
+        media_type: isPdf ? 'application/pdf' : 'image/jpeg',
+        data: base64,
+      },
+    },
+    {
+      type: 'text',
+      text: `このPDF/画像から請求書・明細書の情報を抽出してJSON形式のみで返してください（説明文不要）：
 {
   "invoiceTo": "宛先会社名",
   "subject": "件名・摘要",
@@ -43,19 +37,16 @@ export async function POST(req: NextRequest) {
   "registrationNo": "適格請求書番号（Tから始まる番号、なければ空文字）",
   "memo": "備考・特記事項",
   "items": [
-    {
-      "name": "品目名",
-      "quantity": 1,
-      "unit": "式",
-      "unitPrice": 10000,
-      "taxRate": 10,
-      "amount": 10000
-    }
+    { "name": "品目名", "quantity": 1, "unit": "式", "unitPrice": 10000, "taxRate": 10, "amount": 10000 }
   ]
 }`,
-        },
-      ],
-    }],
+    },
+  ]
+
+  const message = await client.messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 2000,
+    messages: [{ role: 'user', content }],
   })
 
   const text = message.content[0].type === 'text' ? message.content[0].text : ''
