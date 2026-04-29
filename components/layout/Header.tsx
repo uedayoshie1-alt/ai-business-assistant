@@ -1,8 +1,9 @@
 'use client'
 
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Settings, Bell, ChevronRight, Menu } from 'lucide-react'
+import { Settings, Bell, ChevronRight, Menu, LogOut } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard':  { title: 'ダッシュボード',       description: '社労士AI業務ダッシュボード' },
@@ -25,6 +26,12 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    router.replace('/login')
+  }
   const pageInfo = pageTitles[pathname] ?? { title: 'TASUKU AI', description: '' }
 
   return (
@@ -65,16 +72,14 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           <span className="text-sm">会社設定</span>
         </Link>
 
-        {/* ユーザーアバター */}
-        <div className="flex items-center gap-2 pl-2 border-l border-gray-100">
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-            <span className="text-xs font-bold text-blue-700">上</span>
-          </div>
-          <div className="hidden sm:block">
-            <p className="text-xs font-medium text-gray-900 leading-tight">上田 良江</p>
-            <p className="text-[11px] text-gray-400 leading-tight">ハッピーステート株式会社</p>
-          </div>
-        </div>
+        {/* ログアウト */}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:bg-red-50 hover:text-red-600 border border-gray-100 transition-colors"
+        >
+          <LogOut size={14} />
+          <span className="hidden sm:inline text-sm">ログアウト</span>
+        </button>
       </div>
     </header>
   )
