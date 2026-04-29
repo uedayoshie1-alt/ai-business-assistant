@@ -17,33 +17,48 @@ function extractReceiptData(text: string) {
         const year = 2018 + parseInt(match[1])
         date = `${year}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
       } else {
-        date = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
+        let year = parseInt(match[1])
+        // OCR誤読補正：2010〜2019は2020〜2029の誤読の可能性（"2"→"1"の誤認識）
+        if (year >= 2010 && year <= 2019) year += 10
+        // それ以外の異常値は現在年を使用
+        if (year < 2020 || year > 2035) year = new Date().getFullYear()
+        date = `${year}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`
       }
       break
     }
   }
 
-  // 金額抽出
+  // 金額抽出（優先度順：ご請求金額 > 合計 > ¥マーク）
   const amountPatterns = [
-    /合[計計][^\d]*([0-9,，]+)/,
+    /ご請求金額[^\d]*([0-9,，]+)/,
+    /請求金額[^\d]*([0-9,，]+)/,
+    /お支払い金額[^\d]*([0-9,，]+)/,
+    /お支払金額[^\d]*([0-9,，]+)/,
+    /合[計計][^\d\n]{0,10}([0-9,，]{3,})/,
     /お会計[^\d]*([0-9,，]+)/,
     /総額[^\d]*([0-9,，]+)/,
-    /請求額[^\d]*([0-9,，]+)/,
-    /[¥￥]([0-9,，]+)/,
+    /金額\s*([0-9,，]+)円/,
+    /[¥￥]([0-9,，]{3,})/,
   ]
   let amount = 0
   for (const pattern of amountPatterns) {
     const match = text.match(pattern)
     if (match) {
-      amount = parseInt(match[1].replace(/[,，]/g, ''))
-      break
+      const candidate = parseInt(match[1].replace(/[,，]/g, ''))
+      // 明らかに大きすぎる（100万以上）または0の場合はスキップ
+      if (candidate > 0 && candidate < 1000000) {
+        amount = candidate
+        break
+      }
     }
   }
+  // フォールバック：¥マーク後の数値で妥当な範囲のもの
   if (amount === 0) {
-    const numbers = (text.match(/[0-9,，]+/g) || [])
-      .map(n => parseInt(n.replace(/[,，]/g, '')))
-      .filter(n => n >= 100 && n <= 500000)
-    if (numbers.length > 0) amount = Math.max(...numbers)
+    const yenMatches = [...text.matchAll(/[¥￥]([0-9,，]+)/g)]
+    const candidates = yenMatches
+      .map(m => parseInt(m[1].replace(/[,，]/g, '')))
+      .filter(n => n >= 100 && n < 1000000)
+    if (candidates.length > 0) amount = Math.max(...candidates)
   }
 
   // 支払先（タイトル行・数字のみ行を除外し、会社名を優先）
