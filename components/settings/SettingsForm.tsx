@@ -54,11 +54,18 @@ export function SettingsForm() {
       setUserEmail(data.user?.email ?? '')
       setDisplayName(meta.display_name ?? meta.name ?? '')
       setSignature(meta.signature ?? defaultSettings.signature)
-      // 会社情報もSupabaseから（なければlocalStorageにフォールバック）
+      // 会社情報はSupabaseから（なければ空のデフォルト値）
       if (meta.settings) {
         setSettings({ ...defaultSettings, ...meta.settings })
       } else {
-        setSettings(loadSettings())
+        // 新規ユーザーは空から始める（他ユーザーのlocalStorageを使わない）
+        setSettings({
+          ...defaultSettings,
+          companyName: '',
+          userName: meta.display_name ?? '',
+          description: '',
+          signature: meta.signature ?? '',
+        })
       }
     })
   }, [])
