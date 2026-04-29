@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { FormField, Input, Textarea, Select, RadioGroup } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
-import { Building2, FileText, AlertTriangle, PenLine, BookTemplate, Check } from 'lucide-react'
+import { Building2, FileText, AlertTriangle, PenLine, BookTemplate, Check, User } from 'lucide-react'
 import type { CompanySettings, StyleType } from '@/lib/types'
 import { SETTINGS_KEY, defaultSettings, loadSettings } from '@/lib/settings'
+import { supabase } from '@/lib/supabase'
 
 const styleOptions = [
   { value: 'concise', label: '簡潔・シンプル' },
@@ -40,9 +41,20 @@ function SectionCard({ icon, title, description, children }: SectionCardProps) {
 export function SettingsForm() {
   const [settings, setSettings] = useState<CompanySettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
+  const [profileSaved, setProfileSaved] = useState(false)
+  const [displayName, setDisplayName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+  const [signature, setSignature] = useState('')
+  const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
     setSettings(loadSettings())
+    // ログインユーザーのプロフィールをSupabaseから取得
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? '')
+      setDisplayName(data.user?.user_metadata?.display_name ?? data.user?.user_metadata?.name ?? '')
+      setSignature(data.user?.user_metadata?.signature ?? '')
+    })
   }, [])
 
   const update = (key: keyof CompanySettings) => (
@@ -55,8 +67,55 @@ export function SettingsForm() {
     setTimeout(() => setSaved(false), 2500)
   }
 
+  const handleProfileSave = async () => {
+    setProfileLoading(true)
+    await supabase.auth.updateUser({
+      data: { display_name: displayName, signature }
+    })
+    setProfileLoading(false)
+    setProfileSaved(true)
+    setTimeout(() => setProfileSaved(false), 2500)
+  }
+
   return (
     <div className="max-w-2xl space-y-5">
+
+      {/* 個人プロフィール */}
+      <SectionCard
+        icon={<User size={18} className="text-indigo-600" />}
+        title="個人プロフィール"
+        description="ログインアカウントごとに設定できます。他のスタッフには影響しません"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="表示名">
+            <Input
+              value={displayName}
+              onChange={e => setDisplayName(e.target.value)}
+              placeholder="例：山田 太郎"
+            />
+          </FormField>
+          <FormField label="メールアドレス">
+            <Input value={userEmail} disabled className="bg-gray-50 text-gray-400" />
+          </FormField>
+        </div>
+        <FormField label="署名（メール・書類に使用）">
+          <Textarea
+            value={signature}
+            onChange={e => setSignature(e.target.value)}
+            rows={4}
+            placeholder={'例：\n-------\nハッピーステート株式会社\n山田 太郎\nTEL: 03-xxxx-xxxx'}
+          />
+        </FormField>
+        <Button
+          variant="primary"
+          onClick={handleProfileSave}
+          disabled={profileLoading}
+          icon={profileSaved ? <Check size={15} /> : undefined}
+        >
+          {profileSaved ? '保存しました' : profileLoading ? '保存中...' : 'プロフィールを保存'}
+        </Button>
+      </SectionCard>
+
       {/* 会社情報 */}
       <SectionCard
         icon={<Building2 size={18} className="text-blue-600" />}

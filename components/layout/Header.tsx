@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Settings, Bell, ChevronRight, Menu, LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useState, useEffect } from 'react'
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard':  { title: 'ダッシュボード',       description: '社労士AI業務ダッシュボード' },
@@ -27,6 +28,15 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [displayName, setDisplayName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setDisplayName(data.user?.user_metadata?.display_name ?? data.user?.user_metadata?.name ?? '')
+      setUserEmail(data.user?.email ?? '')
+    })
+  }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -71,6 +81,20 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
           <Settings size={14} />
           <span className="text-sm">会社設定</span>
         </Link>
+
+        {/* ユーザー情報 */}
+        {(displayName || userEmail) && (
+          <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-gray-100">
+            <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-blue-700">
+                {(displayName || userEmail).charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <span className="text-xs text-gray-700 font-medium max-w-[100px] truncate">
+              {displayName || userEmail.split('@')[0]}
+            </span>
+          </div>
+        )}
 
         {/* ログアウト */}
         <button
