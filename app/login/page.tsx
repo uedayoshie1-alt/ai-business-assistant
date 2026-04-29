@@ -47,7 +47,7 @@ export default function LoginPage() {
       {/* 左パネル */}
       <div className="hidden lg:flex flex-col justify-center px-16 w-1/2 text-white">
         <div className="mb-10">
-          <Image src="/logo.png" alt="TASUKU AI" width={320} height={180} className="object-contain" priority />
+          <Image src="/logo.PNG" alt="TASUKU AI" width={320} height={180} className="object-contain" priority />
         </div>
         <h2 className="text-4xl font-bold leading-tight mb-4">
           社労士業務を<br />AIで効率化
@@ -79,7 +79,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md">
           {/* モバイル用ロゴ */}
           <div className="flex justify-center mb-6 lg:hidden">
-            <Image src="/logo.png" alt="TASUKU AI" width={200} height={110} className="object-contain" priority />
+            <Image src="/logo.PNG" alt="TASUKU AI" width={200} height={110} className="object-contain" priority />
           </div>
 
           <div className="bg-white rounded-2xl shadow-2xl p-8">
