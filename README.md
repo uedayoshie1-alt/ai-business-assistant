@@ -1,33 +1,8 @@
-# BizAssist AI — AI業務アシスタント MVP
+# TASUKU AI — 社労士AI業務ダッシュボード
 
-中小企業向けのAI業務代行パッケージ。営業メール・議事録・提案文の作成を一つの管理画面で支援します。
+社会保険労務士事務所向けのAI業務支援システム。法改正アラート・助成金マッチング・領収書AI仕分け・AIチャットで業務を効率化します。
 
----
-
-## 起動方法
-
-### 必要環境
-- Node.js 18以上
-- npm または yarn
-
-### インストール・起動
-
-```bash
-# 依存関係のインストール
-npm install
-
-# 開発サーバーの起動
-npm run dev
-```
-
-ブラウザで [http://localhost:3000](http://localhost:3000) を開くと自動でダッシュボードにリダイレクトされます。
-
-### ビルド（本番用）
-
-```bash
-npm run build
-npm start
-```
+**本番URL**: https://tasukuai.com
 
 ---
 
@@ -35,14 +10,19 @@ npm start
 
 | 機能 | ステータス | 説明 |
 |------|-----------|------|
-| ダッシュボード | ✅ 実装済み | 全体の状況確認・クイックアクセス |
-| 営業メール作成 | ✅ 実装済み | 宛先・用件・目的・温度感から自動生成 |
-| 議事録作成 | ✅ 実装済み | 会議メモを整理された議事録に変換 |
-| 提案文作成 | ✅ 実装済み | 課題・提案内容から提案書たたき台を生成 |
-| 見積作成 | 🚧 UI実装 | 次フェーズでPDF出力・保存機能を実装 |
-| 予約対応 | 🚧 UI実装 | 次フェーズで返信文生成・カレンダー連携を実装 |
-| 履歴管理 | ✅ 実装済み | 作成したドキュメントの一覧・検索 |
-| 設定 | ✅ 実装済み | 会社情報・文体・テンプレートの管理 |
+| ダッシュボード | ✅ 実装済み | 法改正件数・領収書件数をリアルタイム表示 |
+| AIチャット | ✅ 実装済み | 労働法・社会保険・助成金に特化したRAG型チャット |
+| 領収書AI仕分け | ✅ 実装済み | Google Document AI（Expense Parser）でOCR・勘定科目提案 |
+| 法改正アラート | ✅ 実装済み | 厚労省RSS・e-Gov APIから24時間ごと自動取得 |
+| 助成金マッチング | ✅ 実装済み | J-Grants APIから申請受付中の助成金をClaudeでスコアリング |
+| 顧問先管理 | ✅ 実装済み | Supabase DBに保存・追加・削除 |
+| 見積書 | ✅ 実装済み | PDF出力・localStorageに保存 |
+| 請求明細書 | ✅ 実装済み | CSV/Excel/PDFアップロード・Google Vision APIでOCR |
+| メール作成 | ✅ 実装済み | ユーザー署名をSupabaseから読み込み自動挿入 |
+| GAS連携 | ✅ 実装済み | Google Apps Scriptとのスプレッドシート連携 |
+| ユーザー認証 | ✅ 実装済み | Supabase Auth（Email/Password） |
+| 管理者機能 | ✅ 実装済み | スタッフ招待・権限変更・削除 |
+| レスポンシブ対応 | ✅ 実装済み | スマホ・タブレット対応（ハンバーガーメニュー） |
 
 ---
 
@@ -50,86 +30,92 @@ npm start
 
 ```
 ai-business-assistant/
-├── app/                    # Next.js App Router
-│   ├── dashboard/          # ダッシュボード
-│   ├── email/              # 営業メール作成
-│   ├── minutes/            # 議事録作成
-│   ├── proposal/           # 提案文作成
-│   ├── estimate/           # 見積作成（UI）
-│   ├── reservation/        # 予約対応（UI）
-│   ├── settings/           # 設定
-│   └── history/            # 履歴
+├── app/
+│   ├── dashboard/          # ダッシュボード（実データ表示）
+│   ├── chat/               # AIチャット（ストリーミング・PDF対応）
+│   ├── receipt/            # 領収書AI仕分け（Document AI + Vision API）
+│   ├── law-alerts/         # 法改正アラート（RSS + e-Gov + Claude）
+│   ├── subsidy/            # 助成金マッチング（J-Grants + Claude）
+│   ├── clients/            # 顧問先管理（Supabase DB）
+│   ├── invoice/            # 請求明細書
+│   ├── estimate/           # 見積書
+│   ├── email/              # メール作成
+│   ├── login/              # ログイン・新規登録
+│   ├── admin/              # 管理者設定
+│   ├── settings/           # 個人・会社設定（Supabase保存）
+│   └── api/
+│       ├── receipt/analyze/        # Document AI OCR
+│       ├── law-alerts/             # 法改正データ取得
+│       ├── subsidy/match/          # 助成金マッチング
+│       ├── chat/                   # AIチャット（ストリーミング）
+│       ├── chat/parse-file/        # ファイル解析
+│       ├── invoice/parse-pdf/      # PDF解析
+│       └── admin/users/            # ユーザー管理
 │
-├── components/             # コンポーネント
-│   ├── layout/             # レイアウト（サイドバー・ヘッダー）
-│   ├── ui/                 # 汎用UIコンポーネント
-│   ├── dashboard/          # ダッシュボード部品
-│   ├── email/              # 営業メール（フォーム・出力）
-│   ├── minutes/            # 議事録（フォーム・出力）
-│   ├── proposal/           # 提案文（フォーム・出力）
-│   ├── estimate/           # 見積フォーム
-│   ├── reservation/        # 予約フォーム
-│   ├── settings/           # 設定フォーム
-│   └── history/            # 履歴リスト
+├── components/
+│   ├── layout/             # AppLayout・Sidebar・Header
+│   ├── email/              # メール作成フォーム・出力
+│   ├── invoice/            # 請求明細書ビルダー
+│   ├── estimate/           # 見積書フォーム
+│   └── settings/           # 設定フォーム
 │
 ├── lib/
-│   ├── types.ts            # TypeScript型定義
-│   ├── mock-generators.ts  # モック生成ロジック（将来APIに差替え）
-│   ├── sample-data.ts      # ダミーデータ
-│   └── utils.ts            # ユーティリティ関数
+│   ├── supabase.ts         # Supabaseクライアント
+│   ├── db.ts               # DB操作（receipts・clients・law_alert_statuses）
+│   ├── useRole.ts          # 権限管理フック（admin/staff）
+│   ├── mock-data.ts        # 型定義・初期データ
+│   ├── mock-generators.ts  # メール・議事録生成ロジック
+│   ├── settings.ts         # 設定ユーティリティ
+│   └── utils.ts            # 共通ユーティリティ
+│
+└── public/
+    └── logo.PNG            # TASUKU AIロゴ（ネイビー×ゴールド）
 ```
 
 ---
 
 ## 技術スタック
 
-- **フレームワーク**: Next.js 16 (App Router)
-- **言語**: TypeScript
-- **スタイル**: Tailwind CSS v4
-- **アイコン**: Lucide React
+| カテゴリ | 技術 |
+|---------|------|
+| フレームワーク | Next.js 16.2.1 (App Router) |
+| 言語 | TypeScript |
+| スタイル | Tailwind CSS v4 |
+| データベース・認証 | Supabase (PostgreSQL + Auth) |
+| AI | Claude Sonnet 4.6 (Anthropic) |
+| OCR | Google Document AI (Expense Parser) + Vision API |
+| デプロイ | Vercel |
+| ドメイン | tasukuai.com (ムームードメイン) |
 
 ---
 
-## APIへの接続方法（将来対応）
+## 環境変数
 
-現在、生成処理は `lib/mock-generators.ts` のモック関数で実装されています。
+| 変数名 | 用途 |
+|--------|------|
+| `GOOGLE_VISION_API_KEY` | 領収書OCR（フォールバック） |
+| `GOOGLE_DOCUMENT_AI_KEY` | 領収書AI仕分け（Expense Parser） |
+| `ANTHROPIC_API_KEY` | Claude API（チャット・法改正・助成金） |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase接続URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase公開キー |
+| `SUPABASE_SERVICE_ROLE_KEY` | ユーザー管理用（サーバーサイドのみ） |
+| `NEXT_PUBLIC_GAS_ENDPOINT` | Google Apps Script連携URL |
 
-実際のAI APIに接続する場合は、このファイルの各関数の中身をAPIコールに差し替えるだけです：
+---
 
-```typescript
-// lib/mock-generators.ts
+## セットアップ
 
-// 現在（モック）
-export async function generateEmail(data: EmailFormData): Promise<EmailOutput> {
-  await delay(1200)
-  return { /* ダミーデータ */ }
-}
-
-// 将来（API接続後）
-export async function generateEmail(data: EmailFormData): Promise<EmailOutput> {
-  const response = await fetch('/api/generate/email', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  })
-  return response.json()
-}
+```bash
+npm install
+cp .env.local.example .env.local  # 環境変数を設定
+npm run dev
 ```
 
 ---
 
-## 今後の拡張候補
+## デプロイ
 
-### フェーズ2（機能拡充）
-- [ ] **見積PDF出力**: 見積書のPDF生成・ダウンロード
-- [ ] **予約返信文生成**: お断り・確認・変更の返信文を自動生成
-- [ ] **Googleカレンダー連携**: 予約をカレンダーに自動登録
-- [ ] **実際のAI API接続**: Claude / GPT-4などへの接続
-
-### フェーズ3（高度化）
-- [ ] **音声入力（議事録）**: 音声ファイルのテキスト変換
-- [ ] **メール送信連携**: Gmail / Outlookと直接連携
-- [ ] **Word / PowerPoint出力**: 提案文をOffice形式で出力
-- [ ] **チーム共有・承認フロー**: 複数メンバーでの承認ワークフロー
-- [ ] **テンプレート学習**: 過去の承認済み文書から会社固有の文体を学習
-- [ ] **顧客管理（CRM連携）**: 案件・顧客情報と紐付けた履歴管理
-- [ ] **Slack / Chatwork通知**: 承認完了・リマインダーの通知
+```bash
+git push origin main
+vercel --prod
+```
