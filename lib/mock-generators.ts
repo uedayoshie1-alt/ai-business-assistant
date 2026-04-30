@@ -16,9 +16,11 @@ import { loadSettings } from './settings'
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
 // ===== 営業メール生成 =====
-export async function generateEmail(data: EmailFormData): Promise<EmailOutput> {
+export async function generateEmail(data: EmailFormData, userSignature?: string): Promise<EmailOutput> {
   const settings = loadSettings()
   await delay(1200)
+  // ユーザーの署名を優先、なければlocalStorageの設定を使用
+  const signature = userSignature || settings.signature
 
   const purposeMap: Record<string, string> = {
     new: '初めてご連絡いたします。',
@@ -54,7 +56,7 @@ ${data.notes
 
 ${closing}
 
-${settings.signature}`
+${signature}`
 
   return {
     subjectLine,

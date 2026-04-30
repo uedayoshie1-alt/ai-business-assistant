@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { EmailForm } from '@/components/email/EmailForm'
 import { EmailOutput } from '@/components/email/EmailOutput'
@@ -8,6 +8,7 @@ import { EmailTemplates } from '@/components/email/EmailTemplates'
 import { GmailAutoReply } from '@/components/email/GmailAutoReply'
 import { generateEmail } from '@/lib/mock-generators'
 import type { EmailFormData, EmailOutput as EmailOutputType } from '@/lib/types'
+import { supabase } from '@/lib/supabase'
 
 const defaultFormData: EmailFormData = {
   companyName: '',
@@ -26,11 +27,21 @@ export default function EmailPage() {
   const [formData, setFormData] = useState<EmailFormData>(defaultFormData)
   const [output, setOutput] = useState<EmailOutputType | null>(null)
   const [loading, setLoading] = useState(false)
+  const [userSignature, setUserSignature] = useState('')
+
+  useEffect(() => {
+    // Supabaseからユーザーの署名を読み込む
+    supabase.auth.getUser().then(({ data }) => {
+      const meta = data.user?.user_metadata ?? {}
+      const sig = meta.signature ?? meta.settings?.signature ?? ''
+      setUserSignature(sig)
+    })
+  }, [])
 
   const handleGenerate = async () => {
     setLoading(true)
     try {
-      const result = await generateEmail(formData)
+      const result = await generateEmail(formData, userSignature)
       setOutput(result)
     } finally {
       setLoading(false)
