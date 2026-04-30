@@ -46,13 +46,28 @@ async function analyzeWithDocumentAI(base64: string, mimeType: string) {
 
   const get = (type: string) => entities.find((e: Record<string, unknown>) => e.type === type)
 
-  // 金額
-  const totalEntity = get('total_amount') ?? get('net_amount')
+  // 金額（複数パターンで確実に取得）
+  const totalEntity = get('total_amount') ?? get('net_amount') ?? get('subtotal_amount')
   let amount = 0
-  if (totalEntity?.normalizedValue?.moneyValue?.units) {
-    amount = parseInt(totalEntity.normalizedValue.moneyValue.units)
-  } else if (totalEntity?.mentionText) {
-    amount = parseInt(totalEntity.mentionText.replace(/[^0-9]/g, ''))
+  if (totalEntity) {
+    // 1. normalizedValue.moneyValue から取得
+    const units = totalEntity.normalizedValue?.moneyValue?.units
+    const nanos = totalEntity.normalizedValue?.moneyValue?.nanos ?? 0
+    if (units && parseInt(units) > 0) {
+      amount = parseInt(units) + Math.round(nanos / 1e9)
+    }
+    // 2. mentionText から取得（フォールバック）
+    if (amount === 0 && totalEntity.mentionText) {
+      amount = parseInt(totalEntity.mentionText.replace(/[^0-9]/g, '')) || 0
+    }
+  }
+  // 3. 全エンティティから最大金額を探す（Document AIが別名で返した場合）
+  if (amount === 0) {
+    for (const entity of entities) {
+      const mention = entity.mentionText ?? ''
+      const v = parseInt(mention.replace(/[^0-9]/g, ''))
+      if (v >= 100 && v < 1000000 && v > amount) amount = v
+    }
   }
 
   // 日付
@@ -115,25 +130,31 @@ function extractFromText(text: string) {
     }
   }
 
-  // 金額
+  // 金額（パターン優先度順）
   const amountPatterns = [
-    /ご請求金額[^\d]*([0-9,，]+)/,
-    /請求金額[^\d]*([0-9,，]+)/,
-    /合[計計][^\d\n]{0,10}([0-9,，]{3,})/,
-    /金額\s*([0-9,，]+)円/,
-    /[¥￥]([0-9,，]{3,})/,
+    /ご請求金額[\s　]*([0-9,，]+)/,
+    /請求金額[\s　]*([0-9,，]+)/,
+    /合計[\s　（(税込)）]*[\s　]*([0-9,，]{3,})/,
+    /合[計計][^\d\n]{0,15}([0-9,，]{3,})/,
+    /金額[\s　]+([0-9,，]+)円/,
+    /金額[\s　]*([0-9,，]+)/,
+    /[¥￥][\s　]*([0-9,，]{3,})/,
+    /([0-9,，]{4,})円/,  // 「16,500円」のような形式
   ]
   let amount = 0
   for (const p of amountPatterns) {
-    const m = text.match(p)
-    if (m) {
+    const matches = [...text.matchAll(new RegExp(p.source, 'g'))]
+    for (const m of matches) {
       const v = parseInt(m[1].replace(/[,，]/g, ''))
-      if (v > 0 && v < 1000000) { amount = v; break }
+      if (v >= 100 && v < 1000000) {
+        amount = Math.max(amount, v) // 最大値を採用（合計金額）
+      }
     }
+    if (amount > 0) break
   }
 
   // 支払先
-  const skipWords = ['領収書', 'receipt', '様', 'No.', '発行日', '但し']
+  const skipWords = ['領収書', 'receipt', '様', 'No.', '発行日', '但し', '〒']
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 1 && !skipWords.some(w => l.includes(w)))
   const companyLine = lines.find(l => /株式会社|有限会社|合同会社|店/.test(l))
   const vendor = companyLine || lines[0] || '不明'
