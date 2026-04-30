@@ -146,48 +146,47 @@ export async function POST(req: NextRequest) {
   const files = formData.getAll('images') as File[]
   if (files.length === 0) return NextResponse.json({ error: 'No images provided' }, { status: 400 })
 
+  // 1枚ずつ順番に処理（並行処理によるタイムアウト回避）
   const results = []
+  const MAX_FILES = 5 // 一度に処理する最大枚数
 
-  for (const file of files) {
+  for (const file of files.slice(0, MAX_FILES)) {
     const bytes = await file.arrayBuffer()
     const base64 = Buffer.from(bytes).toString('base64')
     const mimeType = file.type || 'image/jpeg'
 
-    try {
-      // Document AI で解析（高精度）
-      const { date, amount, vendor, accountCategory, taxRate } = await analyzeWithDocumentAI(base64, mimeType)
+    let pushed = false
 
+    // Document AI で解析（高精度）
+    try {
+      const { date, amount, vendor, accountCategory, taxRate } = await analyzeWithDocumentAI(base64, mimeType)
       results.push({
         id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        date, amount, vendor,
-        purpose: vendor,
-        accountCategory,
+        date, amount, vendor, purpose: vendor, accountCategory,
         accountCategorySuggestions: [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i),
-        taxRate,
-        status: 'pending',
-        sourceType: 'image',
+        taxRate, status: 'pending', sourceType: 'image',
         reason: `Document AI（Expense Parser）により自動抽出。支払先「${vendor}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
         extractedAt: new Date().toISOString(),
       })
-    } catch {
-      // Document AI 失敗時はVision APIにフォールバック
+      pushed = true
+    } catch { /* fallthrough to Vision API */ }
+
+    // Document AI 失敗時はVision APIにフォールバック
+    if (!pushed) {
       try {
         const text = await extractTextWithVision(base64)
-        if (!text) continue
-        const { date, amount, vendor, accountCategory, taxRate } = extractFromText(text)
-        results.push({
-          id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-          date, amount, vendor,
-          purpose: vendor,
-          accountCategory,
-          accountCategorySuggestions: [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i),
-          taxRate,
-          status: 'pending',
-          sourceType: 'image',
-          reason: `OCR解析により自動抽出。支払先「${vendor}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
-          extractedAt: new Date().toISOString(),
-        })
-      } catch { continue }
+        if (text) {
+          const { date, amount, vendor, accountCategory, taxRate } = extractFromText(text)
+          results.push({
+            id: `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            date, amount, vendor, purpose: vendor, accountCategory,
+            accountCategorySuggestions: [accountCategory, '雑費'].filter((v, i, a) => a.indexOf(v) === i),
+            taxRate, status: 'pending', sourceType: 'image',
+            reason: `OCR解析により自動抽出。支払先「${vendor}」、金額「¥${amount.toLocaleString()}」を検出しました。`,
+            extractedAt: new Date().toISOString(),
+          })
+        }
+      } catch { /* skip this file */ }
     }
   }
 
