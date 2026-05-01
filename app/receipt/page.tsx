@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { mockReceipts, ACCOUNT_CATEGORIES, type Receipt, type ReceiptStatus } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import { authenticatedFetch } from '@/lib/auth-fetch'
 
 type FilterType = 'all' | 'pending' | 'confirmed' | 'rejected'
 
@@ -123,7 +124,7 @@ export default function ReceiptPage() {
         const formData = new FormData()
         batch.forEach((blob, j) => formData.append('images', blob, `frame_${i + j}.jpg`))
 
-        const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
+        const res = await authenticatedFetch('/api/receipt/analyze', { method: 'POST', body: formData })
         if (!res.ok) continue
         const data = await res.json()
         if (data.receipts) allReceipts.push(...data.receipts)
@@ -163,7 +164,7 @@ export default function ReceiptPage() {
       for (const file of Array.from(files)) {
         formData.append('images', file)
       }
-      const res = await fetch('/api/receipt/analyze', { method: 'POST', body: formData })
+      const res = await authenticatedFetch('/api/receipt/analyze', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) {
         throw new Error(data.error || `サーバーエラー (${res.status})`)

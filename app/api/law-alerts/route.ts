@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { resolveTenantFromRequest } from '@/lib/tenant-server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -66,7 +67,13 @@ async function fetchEGovUpdates(): Promise<string> {
   return results.join('\n')
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  try {
+    await resolveTenantFromRequest(req)
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
   }
@@ -196,6 +203,6 @@ ${!hasSomeData ? `（外部データ取得失敗）${today}現在の2025〜2026�
     rssItemCount: rssItems.length,
     egovConnected: egovText.length > 0,
   }, {
-    headers: { 'Cache-Control': 'public, s-maxage=3600' },
+    headers: { 'Cache-Control': 'private, no-store' },
   })
 }

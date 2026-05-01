@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { resolveTenantFromRequest } from '@/lib/tenant-server'
 
 const DOC_AI_URL = 'https://us-documentai.googleapis.com/v1/projects/594849327580/locations/us/processors/95b589882a126e56:process'
 const VISION_API_URL = 'https://vision.googleapis.com/v1/images:annotate'
@@ -163,6 +164,12 @@ function extractFromText(text: string) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    await resolveTenantFromRequest(req)
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const formData = await req.formData()
   const files = formData.getAll('images') as File[]
   if (files.length === 0) return NextResponse.json({ error: 'No images provided' }, { status: 400 })

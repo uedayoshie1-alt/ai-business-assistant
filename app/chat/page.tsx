@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Send, Upload, X, Bot, User, Loader2, FileText, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { supabase } from '@/lib/supabase'
 import { useTenant } from '@/lib/tenant'
+import { authenticatedFetch } from '@/lib/auth-fetch'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -83,16 +83,9 @@ export default function ChatPage() {
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
-      const { data } = await supabase.auth.getSession()
-      const token = data.session?.access_token
-      if (!token) throw new Error('ログイン情報を確認できませんでした')
-
-      const res = await fetch('/api/chat', {
+      const res = await authenticatedFetch('/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: newMessages, fileContent }),
       })
       if (!res.ok) throw new Error('サーバーエラー')
@@ -134,7 +127,7 @@ export default function ChatPage() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/chat/parse-file', { method: 'POST', body: formData })
+      const res = await authenticatedFetch('/api/chat/parse-file', { method: 'POST', body: formData })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? '読み込み失敗')
       setFileContent(data.text || '（テキストを抽出できませんでした）')

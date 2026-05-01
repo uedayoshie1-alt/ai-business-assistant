@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { Upload, FileSpreadsheet, X, Send, ExternalLink, AlertCircle, CheckCircle2 } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { authenticatedFetch } from '@/lib/auth-fetch'
 
 const GAS_ENDPOINT = process.env.NEXT_PUBLIC_GAS_ENDPOINT ?? ''
 
@@ -51,7 +52,7 @@ export function InvoiceBuilder() {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const res = await fetch('/api/invoice/parse-pdf', { method: 'POST', body: formData })
+      const res = await authenticatedFetch('/api/invoice/parse-pdf', { method: 'POST', body: formData })
       if (!res.ok) {
         const text = await res.text()
         throw new Error(`サーバーエラー(${res.status}): ${text.slice(0, 100)}`)

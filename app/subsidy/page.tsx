@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { mockSubsidies, type Subsidy, type SubsidyStatus } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import { authenticatedFetch } from '@/lib/auth-fetch'
 
 const statusConfig: Record<SubsidyStatus, { label: string; color: string }> = {
   candidate:  { label: '候補',     color: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -82,7 +83,7 @@ export default function SubsidyPage() {
   async function runMatching() {
     setIsMatching(true)
     try {
-      const res = await fetch('/api/subsidy/match', {
+      const res = await authenticatedFetch('/api/subsidy/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ region, industry, employees, challenges }),

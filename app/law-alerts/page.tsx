@@ -12,6 +12,7 @@ import {
 import { type LawAlert, type LawAlertStatus, type LawAlertImportance } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
 import { useTenant } from '@/lib/tenant'
+import { authenticatedFetch } from '@/lib/auth-fetch'
 
 const statusConfig: Record<LawAlertStatus, { label: string; color: string; icon: React.ElementType }> = {
   unconfirmed: { label: '未確認',        color: 'bg-amber-50 text-amber-700 border-amber-200',   icon: Clock },
@@ -42,7 +43,7 @@ export default function LawAlertsPage() {
   async function fetchLatestAlerts() {
     setIsLoading(true)
     try {
-      const res = await fetch('/api/law-alerts')
+      const res = await authenticatedFetch('/api/law-alerts')
       const data = await res.json()
       if (data.alerts && data.alerts.length > 0) {
         setAlerts(data.alerts.map((a: LawAlert) => ({

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { resolveTenantFromRequest } from '@/lib/tenant-server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -46,6 +47,12 @@ async function extractTextWithVision(base64: string, isPdf: boolean): Promise<{ 
 }
 
 export async function POST(req: NextRequest) {
+  try {
+    await resolveTenantFromRequest(req)
+  } catch {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   if (!process.env.ANTHROPIC_API_KEY) {
     return NextResponse.json({ error: 'API key not configured' }, { status: 500 })
   }
