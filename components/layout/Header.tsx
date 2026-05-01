@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Settings, Bell, ChevronRight, Menu, LogOut } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useState, useEffect } from 'react'
+import { useTenant } from '@/lib/tenant'
 
 const pageTitles: Record<string, { title: string; description: string }> = {
   '/dashboard':  { title: 'ダッシュボード',       description: '社労士AI業務ダッシュボード' },
@@ -28,6 +29,7 @@ const pageTitles: Record<string, { title: string; description: string }> = {
 export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const { tenant } = useTenant()
   const [displayName, setDisplayName] = useState('')
   const [userEmail, setUserEmail] = useState('')
 
@@ -57,7 +59,7 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
         </button>
         <div>
           <div className="hidden sm:flex items-center gap-1.5 text-xs text-gray-400 mb-0.5">
-            <span>TASUKU AI</span>
+            <span>{tenant.productName}</span>
             <ChevronRight size={12} />
             <span className="text-gray-600">{pageInfo.title}</span>
           </div>
@@ -92,6 +94,9 @@ export function Header({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
             <span className="text-xs text-gray-700 font-medium max-w-[100px] truncate">
               {displayName || userEmail.split('@')[0]}
+            </span>
+            <span className="text-[11px] text-gray-400 max-w-[120px] truncate">
+              {tenant.name}
             </span>
           </div>
         )}

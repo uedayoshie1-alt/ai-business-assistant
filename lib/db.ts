@@ -1,14 +1,22 @@
 import { supabase } from './supabase'
+import { resolveCurrentTenant } from './tenant'
 import type { Receipt } from './mock-data'
+
+async function currentCompanyId(): Promise<string> {
+  const tenant = await resolveCurrentTenant()
+  return tenant.companyId
+}
 
 // ============================================================
 // 領収書
 // ============================================================
 
 export async function fetchReceipts(): Promise<Receipt[]> {
+  const companyId = await currentCompanyId()
   const { data, error } = await supabase
     .from('receipts')
     .select('*')
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(r => ({
@@ -28,8 +36,10 @@ export async function fetchReceipts(): Promise<Receipt[]> {
 }
 
 export async function upsertReceipt(receipt: Receipt): Promise<void> {
+  const companyId = await currentCompanyId()
   const { error } = await supabase.from('receipts').upsert({
     id: receipt.id,
+    company_id: companyId,
     date: receipt.date,
     amount: receipt.amount,
     vendor: receipt.vendor,
@@ -47,9 +57,11 @@ export async function upsertReceipt(receipt: Receipt): Promise<void> {
 
 export async function upsertReceipts(receipts: Receipt[]): Promise<void> {
   if (receipts.length === 0) return
+  const companyId = await currentCompanyId()
   const { error } = await supabase.from('receipts').upsert(
     receipts.map(r => ({
       id: r.id,
+      company_id: companyId,
       date: r.date,
       amount: r.amount,
       vendor: r.vendor,
@@ -67,7 +79,8 @@ export async function upsertReceipts(receipts: Receipt[]): Promise<void> {
 }
 
 export async function deleteReceiptById(id: string): Promise<void> {
-  const { error } = await supabase.from('receipts').delete().eq('id', id)
+  const companyId = await currentCompanyId()
+  const { error } = await supabase.from('receipts').delete().eq('id', id).eq('company_id', companyId)
   if (error) throw error
 }
 
@@ -78,9 +91,11 @@ export async function deleteReceiptById(id: string): Promise<void> {
 import type { Client } from './mock-data'
 
 export async function fetchClients(): Promise<Client[]> {
+  const companyId = await currentCompanyId()
   const { data, error } = await supabase
     .from('clients')
     .select('*')
+    .eq('company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map(c => ({
@@ -103,8 +118,10 @@ export async function fetchClients(): Promise<Client[]> {
 }
 
 export async function upsertClient(client: Client): Promise<void> {
+  const companyId = await currentCompanyId()
   const { error } = await supabase.from('clients').upsert({
     id: client.id,
+    company_id: companyId,
     name: client.name,
     industry: client.industry,
     region: client.region,
@@ -124,7 +141,8 @@ export async function upsertClient(client: Client): Promise<void> {
 }
 
 export async function deleteClientById(id: string): Promise<void> {
-  const { error } = await supabase.from('clients').delete().eq('id', id)
+  const companyId = await currentCompanyId()
+  const { error } = await supabase.from('clients').delete().eq('id', id).eq('company_id', companyId)
   if (error) throw error
 }
 
@@ -133,23 +151,31 @@ export async function deleteClientById(id: string): Promise<void> {
 // ============================================================
 
 export async function fetchLawAlertStatuses(): Promise<Record<string, { status: string; confirmedBy?: string; confirmedAt?: string }>> {
-  const { data, error } = await supabase.from('law_alert_statuses').select('*')
+  const companyId = await currentCompanyId()
+  const { data, error } = await supabase
+    .from('law_alert_statuses')
+    .select('*')
+    .eq('company_id', companyId)
   if (error) return {}
   const map: Record<string, { status: string; confirmedBy?: string; confirmedAt?: string }> = {}
   for (const row of data ?? []) {
-    map[row.id] = { status: row.status, confirmedBy: row.confirmed_by, confirmedAt: row.confirmed_at }
+    const alertId = row.alert_id ?? String(row.id).replace(`${companyId}:`, '')
+    map[alertId] = { status: row.status, confirmedBy: row.confirmed_by, confirmedAt: row.confirmed_at }
   }
   return map
 }
 
 export async function upsertLawAlertStatus(id: string, title: string, status: string, confirmedBy?: string): Promise<void> {
+  const companyId = await currentCompanyId()
   const { error } = await supabase.from('law_alert_statuses').upsert({
-    id,
+    id: `${companyId}:${id}`,
+    alert_id: id,
+    company_id: companyId,
     title,
     status,
     confirmed_by: confirmedBy ?? '',
     confirmed_at: ['confirmed', 'notified'].includes(status) ? new Date().toISOString() : null,
     updated_at: new Date().toISOString(),
-  })
+  }, { onConflict: 'company_id,alert_id' })
   if (error) throw error
 }

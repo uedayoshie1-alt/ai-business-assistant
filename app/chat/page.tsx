@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Send, Upload, X, Bot, User, Loader2, FileText, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/lib/tenant'
 
 type Message = { role: 'user' | 'assistant'; content: string }
 
@@ -55,6 +57,7 @@ function MessageBubble({ msg }: { msg: Message }) {
 }
 
 export default function ChatPage() {
+  const { tenant } = useTenant()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -80,9 +83,16 @@ export default function ChatPage() {
     setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
     try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('ログイン情報を確認できませんでした')
+
       const res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({ messages: newMessages, fileContent }),
       })
       if (!res.ok) throw new Error('サーバーエラー')
@@ -158,8 +168,8 @@ export default function ChatPage() {
             <Bot size={18} className="text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-slate-900">社労士AIアシスタント</h1>
-            <p className="text-xs text-slate-500">労働法・社会保険・助成金について質問できます</p>
+            <h1 className="text-lg font-bold text-slate-900">{tenant.aiAssistantName}</h1>
+            <p className="text-xs text-slate-500">{tenant.aiAssistantDescription}</p>
           </div>
           {messages.length > 0 && (
             <button onClick={() => setMessages([])}
@@ -193,7 +203,7 @@ export default function ChatPage() {
                 <p className="text-xs text-slate-400 mt-1">労働法・社会保険・助成金・法改正について回答します</p>
               </div>
               <div className="space-y-2 max-w-md mx-auto">
-                {SUGGESTIONS.map(s => (
+                {(tenant.suggestedQuestions.length > 0 ? tenant.suggestedQuestions : SUGGESTIONS).map(s => (
                   <button key={s} onClick={() => sendMessage(s)}
                     className="w-full text-left text-xs px-4 py-2.5 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 text-slate-600 transition-colors">
                     {s}

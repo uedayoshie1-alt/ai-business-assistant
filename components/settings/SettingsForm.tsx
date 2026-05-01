@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { FormField, Input, Textarea, Select, RadioGroup } from '@/components/ui/FormField'
+import { FormField, Input, Textarea, RadioGroup } from '@/components/ui/FormField'
 import { Button } from '@/components/ui/Button'
 import { Building2, FileText, AlertTriangle, PenLine, BookTemplate, Check, User } from 'lucide-react'
 import type { CompanySettings, StyleType } from '@/lib/types'
-import { SETTINGS_KEY, defaultSettings, loadSettings } from '@/lib/settings'
+import { defaultSettings, loadSettings, settingsStorageKey } from '@/lib/settings'
 import { supabase } from '@/lib/supabase'
+import { useTenant } from '@/lib/tenant'
 
 const styleOptions = [
   { value: 'concise', label: '簡潔・シンプル' },
@@ -39,6 +40,7 @@ function SectionCard({ icon, title, description, children }: SectionCardProps) {
 }
 
 export function SettingsForm() {
+  const { tenant } = useTenant()
   const [settings, setSettings] = useState<CompanySettings>(defaultSettings)
   const [saved, setSaved] = useState(false)
   const [profileSaved, setProfileSaved] = useState(false)
@@ -48,27 +50,47 @@ export function SettingsForm() {
   const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
+    let alive = true
+
     // Supabaseからユーザーの全設定を読み込む
-    supabase.auth.getUser().then(({ data }) => {
+    async function load() {
+      await Promise.resolve()
+      if (!alive) return
+      setSettings(loadSettings(tenant.companyId))
+
+      const { data } = await supabase.auth.getUser()
+      if (!alive) return
       const meta = data.user?.user_metadata ?? {}
       setUserEmail(data.user?.email ?? '')
       setDisplayName(meta.display_name ?? meta.name ?? '')
       setSignature(meta.signature ?? defaultSettings.signature)
-      // 会社情報はSupabaseから（なければ空のデフォルト値）
-      if (meta.settings) {
+
+      const { data: companySettings } = await supabase
+        .from('company_settings')
+        .select('settings')
+        .eq('company_id', tenant.companyId)
+        .maybeSingle()
+
+      if (!alive) return
+      if (companySettings?.settings) {
+        setSettings({ ...defaultSettings, ...(companySettings.settings as Partial<CompanySettings>) })
+      } else if (meta.settings) {
         setSettings({ ...defaultSettings, ...meta.settings })
       } else {
         // 新規ユーザーは空から始める（他ユーザーのlocalStorageを使わない）
         setSettings({
           ...defaultSettings,
-          companyName: '',
+          companyName: tenant.name,
           userName: meta.display_name ?? '',
-          description: '',
+          description: tenant.industryLabel,
           signature: meta.signature ?? '',
         })
       }
-    })
-  }, [])
+    }
+
+    load()
+    return () => { alive = false }
+  }, [tenant.companyId, tenant.industryLabel, tenant.name])
 
   const update = (key: keyof CompanySettings) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -76,7 +98,10 @@ export function SettingsForm() {
 
   const handleSave = async () => {
     // SupabaseとlocalStorageの両方に保存
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+    localStorage.setItem(settingsStorageKey(tenant.companyId), JSON.stringify(settings))
+    await supabase
+      .from('company_settings')
+      .upsert({ company_id: tenant.companyId, settings }, { onConflict: 'company_id' })
     await supabase.auth.updateUser({ data: { settings } })
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
@@ -135,7 +160,7 @@ export function SettingsForm() {
       <SectionCard
         icon={<Building2 size={18} className="text-blue-600" />}
         title="会社情報"
-        description="AI生成に使われる基本情報です。正確に入力することで品質が向上します"
+        description={`${tenant.name} のAI生成に使われる基本情報です`}
       >
         <div className="grid grid-cols-2 gap-3">
           <FormField label="会社名" required>

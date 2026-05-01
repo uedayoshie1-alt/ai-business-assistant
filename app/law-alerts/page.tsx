@@ -11,6 +11,7 @@ import {
 
 import { type LawAlert, type LawAlertStatus, type LawAlertImportance } from '@/lib/mock-data'
 import { cn } from '@/lib/utils'
+import { useTenant } from '@/lib/tenant'
 
 const statusConfig: Record<LawAlertStatus, { label: string; color: string; icon: React.ElementType }> = {
   unconfirmed: { label: '未確認',        color: 'bg-amber-50 text-amber-700 border-amber-200',   icon: Clock },
@@ -28,6 +29,7 @@ const importanceConfig: Record<LawAlertImportance, { label: string; color: strin
 type StatusFilter = LawAlertStatus | 'all'
 
 export default function LawAlertsPage() {
+  const { tenant } = useTenant()
   const [alerts, setAlerts] = useState<LawAlert[]>([])
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [importanceFilter, setImportanceFilter] = useState<'all' | LawAlertImportance>('all')
@@ -48,7 +50,7 @@ export default function LawAlertsPage() {
           status: a.status ?? 'unconfirmed',
         })))
         setGeneratedAt(data.generatedAt)
-        try { localStorage.setItem('lawAlertLastFetch', new Date().toISOString()) } catch {}
+        try { localStorage.setItem(`lawAlertLastFetch:${tenant.companyId}`, new Date().toISOString()) } catch {}
       }
     } catch (err) {
       console.error('Failed to fetch law alerts:', err)
@@ -60,7 +62,7 @@ export default function LawAlertsPage() {
   useEffect(() => {
     // 最終取得から24時間以上経過していたら自動取得
     try {
-      const lastFetch = localStorage.getItem('lawAlertLastFetch')
+      const lastFetch = localStorage.getItem(`lawAlertLastFetch:${tenant.companyId}`) ?? localStorage.getItem('lawAlertLastFetch')
       const hoursSince = lastFetch
         ? (Date.now() - new Date(lastFetch).getTime()) / (1000 * 60 * 60)
         : 999
@@ -70,12 +72,12 @@ export default function LawAlertsPage() {
     } catch {
       fetchLatestAlerts()
     }
-  }, [])
+  }, [tenant.companyId])
 
   useEffect(() => {
     const count = alerts.filter(a => a.status === 'unconfirmed').length
-    try { localStorage.setItem('lawAlertUnconfirmed', String(count)) } catch {}
-  }, [alerts])
+    try { localStorage.setItem(`lawAlertUnconfirmed:${tenant.companyId}`, String(count)) } catch {}
+  }, [alerts, tenant.companyId])
 
   const filtered = alerts.filter(a =>
     (statusFilter === 'all' || a.status === statusFilter) &&

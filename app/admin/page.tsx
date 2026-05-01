@@ -16,7 +16,7 @@ type UserRecord = {
 }
 
 export default function AdminPage() {
-  const { isAdmin, loading } = useRole()
+  const { isAdmin, loading, tenant } = useRole()
   const router = useRouter()
   const [users, setUsers] = useState<UserRecord[]>([])
   const [inviteEmail, setInviteEmail] = useState('')
@@ -42,7 +42,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!loading && !isAdmin) router.replace('/dashboard')
-    if (!loading && isAdmin) fetchUsers()
+    if (!loading && isAdmin) {
+      let alive = true
+      queueMicrotask(() => {
+        if (alive) fetchUsers()
+      })
+      return () => { alive = false }
+    }
   }, [loading, isAdmin, router, fetchUsers])
 
   async function invite() {
@@ -98,7 +104,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">管理者設定</h1>
-            <p className="text-xs text-slate-500">スタッフの招待・権限管理</p>
+            <p className="text-xs text-slate-500">{tenant?.name ?? '自社'} のスタッフ招待・権限管理</p>
           </div>
           <button onClick={fetchUsers} className="ml-auto text-slate-400 hover:text-slate-600">
             <RefreshCw size={16} className={fetching ? 'animate-spin' : ''} />

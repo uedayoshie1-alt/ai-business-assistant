@@ -8,9 +8,10 @@ import {
   CheckCircle2, FileText, Building2, ChevronRight, Sparkles,
   ArrowUpRight, Calendar,
 } from 'lucide-react'
-import { mockSubsidies, mockClients } from '@/lib/mock-data'
-import { fetchReceipts } from '@/lib/db'
+import { mockSubsidies } from '@/lib/mock-data'
+import { fetchClients, fetchReceipts } from '@/lib/db'
 import { cn } from '@/lib/utils'
+import { useTenant } from '@/lib/tenant'
 
 function StatCard({
   label, value, sub, icon: Icon, color, href,
@@ -51,28 +52,42 @@ function StatCard({
 }
 
 export default function DashboardPage() {
+  const { tenant } = useTenant()
   const [newAlerts, setNewAlerts] = useState(0)
   const [totalReceipts, setTotalReceipts] = useState(0)
   const [pendingReceipts, setPendingReceipts] = useState(0)
   const [videoReceipts, setVideoReceipts] = useState(0)
+  const [totalClients, setTotalClients] = useState(0)
 
   useEffect(() => {
-    // 法改正未確認件数をlocalStorageから取得
-    try {
-      const n = localStorage.getItem('lawAlertUnconfirmed')
-      setNewAlerts(n ? parseInt(n) : 0)
-    } catch {}
+    let alive = true
+
+    queueMicrotask(() => {
+      if (!alive) return
+      // 法改正未確認件数をlocalStorageから取得
+      try {
+        const n = localStorage.getItem(`lawAlertUnconfirmed:${tenant.companyId}`) ?? localStorage.getItem('lawAlertUnconfirmed')
+        setNewAlerts(n ? parseInt(n) : 0)
+      } catch {}
+    })
 
     // 領収書データをSupabase DBから取得
     fetchReceipts().then(receipts => {
+      if (!alive) return
       setTotalReceipts(receipts.length)
       setPendingReceipts(receipts.filter(r => r.status === 'pending').length)
       setVideoReceipts(receipts.filter(r => r.sourceType === 'video').length)
     }).catch(() => {})
-  }, [])
+
+    fetchClients().then(clients => {
+      if (!alive) return
+      setTotalClients(clients.length)
+    }).catch(() => {})
+
+    return () => { alive = false }
+  }, [tenant.companyId])
 
   const candidateSubsidies = mockSubsidies.filter(r => r.status === 'candidate').length
-  const totalClients = mockClients.length
   const totalSubsidyAmount = '¥2,180万円'
   const timeSaved = '38.5時間'
   const topSubsidies = mockSubsidies.filter(s => s.status === 'candidate').sort((a, b) => b.score - a.score).slice(0, 3)
@@ -95,7 +110,7 @@ export default function DashboardPage() {
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-xl font-bold text-slate-900">おはようございます</h2>
-            <p className="text-sm text-slate-400 mt-0.5">社労士AI業務ダッシュボード — 今日もスムーズな業務をサポートします</p>
+            <p className="text-sm text-slate-400 mt-0.5">{tenant.name} — 今日もスムーズな業務をサポートします</p>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Calendar size={14} />

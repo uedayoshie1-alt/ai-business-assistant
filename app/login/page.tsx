@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import Image from 'next/image'
+import { DEFAULT_COMPANY_ID } from '@/lib/tenant-config'
 
 type Mode = 'login' | 'signup'
 
@@ -31,7 +32,7 @@ export default function LoginPage() {
     } else {
       const { error } = await supabase.auth.signUp({
         email, password,
-        options: { data: { role: 'staff' } }
+        options: { data: { role: 'staff', company_id: DEFAULT_COMPANY_ID } }
       })
       if (error) setError(error.message.includes('already') ? 'このメールアドレスはすでに登録されています' : error.message)
       else setMessage('確認メールを送信しました。メールのリンクをクリックしてアカウントを有効化してください。')

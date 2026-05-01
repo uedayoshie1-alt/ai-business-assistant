@@ -24,8 +24,10 @@ type Estimate = {
   savedAt: string
 }
 
+const genId = () => Math.random().toString(36).slice(2)
+
 const newItem = (): EstimateItem => ({
-  id: Math.random().toString(36).slice(2),
+  id: genId(),
   name: '', quantity: 1, unitPrice: 0, note: '',
 })
 
@@ -34,29 +36,36 @@ const genNo = () => {
   return `EST-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${Math.floor(Math.random()*1000).toString().padStart(3,'0')}`
 }
 
+const newEstimateDraft = (): Estimate => ({
+  id: genId(),
+  estimateNo: genNo(),
+  clientName: '',
+  issueDate: new Date().toISOString().split('T')[0],
+  validUntil: '',
+  items: [newItem()],
+  taxRate: 10,
+  notes: '',
+  companyName: '',
+  savedAt: '',
+})
+
 export function EstimateForm() {
   const printRef = useRef<HTMLDivElement>(null)
 
-  const [estimate, setEstimate] = useState<Estimate>({
-    id: Math.random().toString(36).slice(2),
-    estimateNo: genNo(),
-    clientName: '',
-    issueDate: new Date().toISOString().split('T')[0],
-    validUntil: '',
-    items: [newItem()],
-    taxRate: 10,
-    notes: '',
-    companyName: '',
-    savedAt: '',
-  })
+  const [estimate, setEstimate] = useState<Estimate>(newEstimateDraft)
   const [savedList, setSavedList] = useState<Estimate[]>([])
   const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('estimates')
-      if (saved) setSavedList(JSON.parse(saved))
-    } catch {}
+    let alive = true
+    queueMicrotask(() => {
+      if (!alive) return
+      try {
+        const saved = localStorage.getItem('estimates')
+        if (saved) setSavedList(JSON.parse(saved))
+      } catch {}
+    })
+    return () => { alive = false }
   }, [])
 
   const subtotal = estimate.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0)
@@ -95,18 +104,7 @@ export function EstimateForm() {
   }
 
   function newEstimate() {
-    setEstimate({
-      id: Math.random().toString(36).slice(2),
-      estimateNo: genNo(),
-      clientName: '',
-      issueDate: new Date().toISOString().split('T')[0],
-      validUntil: '',
-      items: [newItem()],
-      taxRate: 10,
-      notes: '',
-      companyName: '',
-      savedAt: '',
-    })
+    setEstimate(newEstimateDraft())
   }
 
   function printEstimate() {

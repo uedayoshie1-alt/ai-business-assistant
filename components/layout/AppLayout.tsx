@@ -1,14 +1,40 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { supabase } from '@/lib/supabase'
 import { Loader2 } from 'lucide-react'
+import { useTenant } from '@/lib/tenant'
+
+const pathFeatures: Array<[string, string]> = [
+  ['/dashboard', 'dashboard'],
+  ['/chat', 'chat'],
+  ['/receipt', 'receipt'],
+  ['/law-alerts', 'law-alerts'],
+  ['/subsidy', 'subsidy'],
+  ['/clients', 'clients'],
+  ['/gas', 'gas'],
+  ['/email', 'email'],
+  ['/minutes', 'minutes'],
+  ['/invoice', 'invoice'],
+  ['/customers', 'customers'],
+  ['/estimate', 'estimate'],
+  ['/reservation', 'reservation'],
+  ['/history', 'history'],
+  ['/settings', 'settings'],
+  ['/admin', 'admin'],
+]
+
+function featureForPath(pathname: string) {
+  return pathFeatures.find(([path]) => pathname === path || pathname.startsWith(`${path}/`))?.[1] ?? null
+}
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const { tenant, loading: tenantLoading } = useTenant()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [checking, setChecking] = useState(true)
 
@@ -24,7 +50,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return () => listener.subscription.unsubscribe()
   }, [router])
 
-  if (checking) {
+  useEffect(() => {
+    if (checking || tenantLoading) return
+    const feature = featureForPath(pathname)
+    if (feature && !tenant.enabledFeatures.includes(feature)) {
+      router.replace('/dashboard')
+    }
+  }, [checking, pathname, router, tenant.enabledFeatures, tenantLoading])
+
+  if (checking || tenantLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Loader2 size={32} className="text-blue-500 animate-spin" />

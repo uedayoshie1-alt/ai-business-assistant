@@ -24,43 +24,44 @@ import {
   Crown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useTenant } from '@/lib/tenant'
 
-type NavItem = { href: string; label: string; icon: React.ElementType; badge?: string | null; badgeColor?: string }
+type NavItem = { href: string; label: string; icon: React.ElementType; feature: string; badge?: string | null; badgeColor?: string }
 type NavSection = { section: string; items: NavItem[] }
 
 const navItems: NavSection[] = [
   {
     section: 'メイン',
     items: [
-        { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard },
-      { href: '/chat', label: 'AIチャット', icon: MessageCircle, badge: null },
+      { href: '/dashboard', label: 'ダッシュボード', icon: LayoutDashboard, feature: 'dashboard' },
+      { href: '/chat', label: 'AIチャット', icon: MessageCircle, feature: 'chat', badge: null },
     ],
   },
   {
     section: '社労士 AI ツール',
     items: [
-      { href: '/receipt', label: '領収書AI仕分け', icon: ScanLine, badge: null },
-      { href: '/law-alerts', label: '法改正アラート', icon: Bell, badge: null },
-      { href: '/subsidy', label: '助成金マッチング', icon: DollarSign, badge: null },
-      { href: '/clients', label: '顧問先管理', icon: Building2, badge: null },
-      { href: '/gas', label: 'GAS連携', icon: Zap, badge: null },
+      { href: '/receipt', label: '領収書AI仕分け', icon: ScanLine, feature: 'receipt', badge: null },
+      { href: '/law-alerts', label: '法改正アラート', icon: Bell, feature: 'law-alerts', badge: null },
+      { href: '/subsidy', label: '助成金マッチング', icon: DollarSign, feature: 'subsidy', badge: null },
+      { href: '/clients', label: '顧問先管理', icon: Building2, feature: 'clients', badge: null },
+      { href: '/gas', label: 'GAS連携', icon: Zap, feature: 'gas', badge: null },
     ],
   },
   {
     section: '業務アシスタント',
     items: [
-      { href: '/email', label: 'メール作成', icon: Mail, badge: null },
-      { href: '/minutes', label: '議事録', icon: FileText, badge: null },
-      { href: '/invoice', label: '請求明細書', icon: Receipt, badge: null },
-      { href: '/customers', label: '顧客リスト', icon: Users, badge: null },
-      { href: '/estimate', label: '見積', icon: Calculator, badge: null },
+      { href: '/email', label: 'メール作成', icon: Mail, feature: 'email', badge: null },
+      { href: '/minutes', label: '議事録', icon: FileText, feature: 'minutes', badge: null },
+      { href: '/invoice', label: '請求明細書', icon: Receipt, feature: 'invoice', badge: null },
+      { href: '/customers', label: '顧客リスト', icon: Users, feature: 'customers', badge: null },
+      { href: '/estimate', label: '見積', icon: Calculator, feature: 'estimate', badge: null },
     ],
   },
   {
     section: '管理',
     items: [
-      { href: '/history', label: '履歴', icon: History, badge: null },
-      { href: '/settings', label: '設定', icon: Settings, badge: null },
+      { href: '/history', label: '履歴', icon: History, feature: 'history', badge: null },
+      { href: '/settings', label: '設定', icon: Settings, feature: 'settings', badge: null },
     ],
   },
 ]
@@ -69,7 +70,7 @@ const adminNavItems: NavSection[] = [
   {
     section: '管理者',
     items: [
-      { href: '/admin', label: 'ユーザー管理', icon: Crown, badge: null },
+      { href: '/admin', label: 'ユーザー管理', icon: Crown, feature: 'admin', badge: null },
     ],
   },
 ]
@@ -78,12 +79,20 @@ const adminNavItems: NavSection[] = [
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
   const { isAdmin } = useRole()
+  const { tenant } = useTenant()
   const [unconfirmedCount, setUnconfirmedCount] = useState(0)
+  const enabledFeatures = new Set(tenant.enabledFeatures)
+  const sections = [...navItems, ...(isAdmin ? adminNavItems : [])]
+    .map(section => ({
+      ...section,
+      items: section.items.filter(item => enabledFeatures.has(item.feature)),
+    }))
+    .filter(section => section.items.length > 0)
 
   useEffect(() => {
     const read = () => {
       try {
-        const n = localStorage.getItem('lawAlertUnconfirmed')
+        const n = localStorage.getItem(`lawAlertUnconfirmed:${tenant.companyId}`) ?? localStorage.getItem('lawAlertUnconfirmed')
         setUnconfirmedCount(n ? parseInt(n) : 0)
       } catch {}
     }
@@ -92,7 +101,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
     // 同一タブでの更新も検知
     const interval = setInterval(read, 3000)
     return () => { window.removeEventListener('storage', read); clearInterval(interval) }
-  }, [])
+  }, [tenant.companyId])
 
   return (
     <aside
@@ -109,15 +118,15 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
             <Sparkles className="text-white" size={18} />
           </div>
           <div>
-            <p className="text-white font-bold text-sm leading-tight tracking-wide">TASUKU AI</p>
-            <p className="text-[11px] leading-tight" style={{ color: '#93C5FD' }}>社労士 AI アシスタント</p>
+            <p className="text-white font-bold text-sm leading-tight tracking-wide">{tenant.productName}</p>
+            <p className="text-[11px] leading-tight truncate max-w-[170px]" style={{ color: '#93C5FD' }}>{tenant.industryLabel}</p>
           </div>
         </Link>
       </div>
 
       {/* ナビゲーション */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-5">
-        {[...navItems, ...(isAdmin ? adminNavItems : [])].map((section) => (
+        {sections.map((section) => (
           <div key={section.section}>
             <p className="text-[10px] font-semibold uppercase tracking-widest px-2 mb-1.5"
               style={{ color: '#4B6FA8' }}>
@@ -185,6 +194,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
       </nav>
 
       {/* 下部バナー */}
+      {enabledFeatures.has('gas') && (
       <div className="p-3 border-t border-white/10">
         <Link
           href="/gas"
@@ -198,6 +208,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
           <p className="text-[11px] mt-0.5" style={{ color: '#6D81A8' }}>スプレッドシート・Drive・メール通知</p>
         </Link>
       </div>
+      )}
     </aside>
   )
 }
